@@ -1,0 +1,127 @@
+<!-- HTML -->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Генератор типографической композиции</title>
+
+  <!-- Google Fonts (странные + базовые, с кириллицей) -->
+  <link href="https://fonts.googleapis.com/css2?family=Alice&family=Anonymous+Pro:wght@400;700&family=Bitter:wght@400;700&family=Comfortaa:wght@400;700&family=Cormorant+Garamond:wght@400;700&family=Didact+Gothic&family=Exo+2:wght@400;700&family=Forum&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Jura:wght@400;700&family=Kelly+Slab&family=Kurale&family=Lobster&family=Marck+Script&family=Montserrat:wght@400;700&family=Neucha&family=Noto+Sans+Mono:wght@400;700&family=Noto+Serif+Display:wght@400;700&family=Oranienbaum&family=Oswald:wght@400;700&family=PT+Mono&family=PT+Sans:wght@400;700&family=PT+Serif:wght@400;700&family=Philosopher:wght@400;700&family=Play:wght@400;700&family=Playfair+Display:wght@400;700&family=Poiret+One&family=Roboto:wght@400;700&family=Rubik:wght@400;700&family=Ruslan+Display&family=Russo+One&family=Stalinist+One&family=Tenor+Sans&family=Ubuntu:wght@400;700&family=Unbounded:wght@400;700&family=Yeseva+One&display=swap" rel="stylesheet">
+
+  <!-- html2canvas для PNG -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+       <h1>Генератор типографической композиции</h1><div class="who">Навайбкодил — <a href="https://krivenxter.github.io/">Олег Кривенко</a></div></div>
+  
+      <div class="controls">
+      <button id="btn">Сгенерить</button>
+        
+         <textarea id="custom" rows="2" placeholder="Ваш Текст"></textarea>
+        <button id="moveUp" class="secondary" aria-label="Вверх">▲</button>
+        
+<button id="moveDown" class="secondary" aria-label="Вниз">▼</button>
+
+        <button id="gradToggle" class="secondary">Градиент</button>
+        
+                <button id="invert" class="secondary">Белый / чёрный</button>
+<!-- …внутри .controls только кнопка -->
+
+        
+
+         
+ <button id="micro" class="secondary">Мелкий текст</button>       
+        <button id="cringe" class="secondary">Пузыри</button>
+<button id="bgBtn" class="secondary">Фон ✓</button>
+<button id="bgClear" class="secondary">Фон ×</button>
+
+
+
+<input id="bgUpload" type="file" accept="image/*" hidden>
+
+<button id="round" class="secondary">Силуэт</button>
+  <button id="download" class="down">Скачать  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+       xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 6V18C20 18.5304 19.7893 19.0391 19.4142 19.4142C19.0391 19.7893 18.5304 20 18 20H6C5.46957 20 4.96086 19.7893 4.58579 19.4142C4.21071 19.0391 4 18.5304 4 18V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6ZM18 6H6V12.38L8.19 10.19L13.42 15.42L14.42 14.42C14.7241 14.1767 15.107 14.0536 15.4959 14.0738C15.8848 14.0941 16.2528 14.2564 16.53 14.53L18 16V6ZM13 9.5C13 9.10218 13.158 8.72064 13.4393 8.43934C13.7206 8.15804 14.1022 8 14.5 8C14.8978 8 15.2794 8.15804 15.5607 8.43934C15.842 8.72064 16 9.10218 16 9.5C16 9.89782 15.842 10.2794 15.5607 10.5607C15.2794 10.842 14.8978 11 14.5 11C14.1022 11 13.7206 10.842 13.4393 10.5607C13.158 10.2794 13 9.89782 13 9.5Z" fill="black"/>
+  </svg></button>
+          
+    </div>
+      
+<!-- мини-попап для действий по силуэту -->
+<div id="silhouetteMenu" class="action-popover" hidden>
+  <button id="actCutBg"  type="button" class="secondary">Вырезать фон</button>
+  <button id="actFill"   type="button" class="secondary">Покрасить цвет</button>
+  <button id="actGrad"   type="button" class="secondary">Покрасить градиент</button>
+</div>
+
+    <div id="stage" class="stage">
+<div id="bgLayer" class="bg" hidden aria-hidden="true"></div>
+
+
+
+      <!-- основной слой с живой композицией -->
+      <div id="composition" class="composition" aria-live="polite">
+        <div id="line1" class="line l1"></div>
+        <div id="line2" class="line l2"></div>
+      </div>
+
+      <!-- оверлей для результата скругления (не ломает DOM) -->
+<div id="overlay" class="overlay" hidden>
+  <div id="silhouetteFill" class="silhouette-fill" aria-hidden="true"></div>
+</div>
+
+    </div>
+
+    <footer>
+ 
+            <div class="who"><a href="https://t.me/okrivenko">Вопросы сюда</a></div> 
+            <div class="who">Обновлено 11 Авг. 25'</div>
+    
+  
+  </div>
+    
+    <!-- В САМОМ НИЗУ страницы, перед </body> -->
+<div id="gradModal" class="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gradTitle">
+    <div class="modal-head">
+      <div id="gradTitle" class="modal-title">Градиент фона</div>
+      <button id="gradClose" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
+    </div>
+   <div class="modal-body">
+  <label>Цвет 1
+    <input type="color" id="gradA" value="#c7c7c7">
+  </label>
+
+  <label>Цвет 2
+    <input type="color" id="gradB" value="#4d70ff">
+  </label>
+
+  <label>Цвет 3
+    <input type="color" id="gradC" value="#ff75bf">
+  </label>
+
+  <label>Угол (°)
+    <input type="range" id="gradAngle" min="0" max="360" value="-180">
+  </label>
+
+  <label>Смещение 1 (%) — граница между Цвет 1 и Цвет 2
+    <input type="range" id="gradBias1" min="0" max="100" value="15">
+  </label>
+
+  <label>Смещение 2 (%) — граница между Цвет 2 и Цвет 3
+    <input type="range" id="gradBias2" min="0" max="100" value="85">
+  </label>
+</div>
+
+    <div class="modal-foot">
+      <button id="gradClear" class="secondary" type="button">Убрать градиент</button>
+      <button id="gradDone" type="button">Готово</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
