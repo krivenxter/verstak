@@ -1,5 +1,4 @@
-<script>
-/* CSS */
+<style>
 :root { --bg:#f6f6f8; --ink:#0a0a0a; }
 
 html, body { height: 100%; }
@@ -461,4 +460,4 @@ a {
 [hidden] { 
   display: none !important; 
 }
-</script>
+</style>
