@@ -1,0 +1,464 @@
+<script>
+/* CSS */
+:root { --bg:#f6f6f8; --ink:#0a0a0a; }
+
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg);
+  font-family: Roboto, system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  color: var(--ink); display: grid; place-items: center; padding: 16px;
+      align-items: start;
+}
+
+.app { max-width: 500px; }
+
+/* фон-картинка под композицией */
+.bg{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background-position:center;
+  background-size:cover;
+  background-repeat:no-repeat;
+}
+
+/* чтобы переключение белый/чёрный красило всё сразу */
+.composition { color:#000; }
+.stage.light .composition { color:#fff; }
+.composition .ch { color: inherit !important; }
+
+/* мелкая типографика */
+.micro{
+  font-size: 16px;
+  line-height: 1.2;
+  letter-spacing: .2px;
+  text-align:center;
+  margin: 6px 0 2px;
+  opacity:.9;
+}
+/* чуть рандомим размер через data-size (см. JS) */
+.micro[data-size="lg"]{ font-size:20px; }
+.micro[data-size="md"]{ font-size:18px; }
+
+/* мелкий текст — контейнер внутри composition */
+.micro-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 80%;
+  flex-wrap: wrap;
+}
+
+
+
+.micro-chip{
+  font-size:15px;                 /* базовый */
+  line-height:1.2;
+  letter-spacing:.2px;
+  font-weight:bold;
+  opacity:.95;
+  white-space:nowrap;
+  text-transform: uppercase; 
+  -webkit-text-stroke: thin;
+}
+.micro-row[data-size="md"] .micro-chip{ font-size:18px; }
+.micro-row[data-size="lg"] .micro-chip{ font-size:20px; }
+
+.micro-row { text-transform: lowercase; }
+
+
+
+/* Мини-попап действий для "Силуэта" */
+
+.action-popover{
+  position: fixed; /* было absolute */
+  z-index: 10000;
+  background: #fff;
+  border: 1px solid #c8c8c8;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+
+.action-popover[hidden]{ display:none !important; }
+
+/* Контейнер заливки силуэта поверх threshold */
+.silhouette-fill{
+  position:absolute; inset:0;
+  pointer-events:none;
+  /* По умолчанию пусто; включаем, когда выбираем действие */
+  display:none;
+  /* Маска подключается из JS: mask-image: url(data:...png) */
+  -webkit-mask-repeat:no-repeat;
+  mask-repeat:no-repeat;
+  -webkit-mask-size:cover;
+  mask-size:cover;
+  -webkit-mask-position:center;
+  mask-position:center;
+   mask-mode: alpha;           /* стандарт */
+  -webkit-mask-composite: source-over; /* по умолчанию; на поведение не влияет */
+}
+.silhouette-fill.active{ display:block; }
+
+/* Чтобы threshold фон не мешал заливке (когда надо) */
+.overlay.threshold-only{
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+
+
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: center;
+  margin-bottom: 5px;
+}
+
+.controls-main {
+    /* display: flex
+; */
+    /* justify-content: space-between; */
+    display: flex
+;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    flex-direction: row;
+    width: 100%;
+}
+
+button, label { font: 600 14px/1.2 Inter, system-ui, sans-serif; }
+button {
+  display: flex;
+    align-items: center;
+  font-weight: 400;
+      font-variant: all-petite-caps;
+    letter-spacing: -0.2px;
+  border: 0; padding: 16px 16px; border-radius: 50px; cursor: pointer;
+  background: #111; color: #fff; box-shadow: 0 6px §14px rgba(0,0,0,.15);
+  transition: transform .06s ease, box-shadow .2s ease;
+      max-height: 40px;
+}
+button.secondary {
+    background: #fff;
+    color: #111;
+    border: 1px solid #c8c8c8;
+    display: flex
+;
+    align-items: center;
+    gap: 4px;
+    max-height: 40px;
+}
+
+button.down {
+    background: #fff;
+    color: #111;
+    border: 1px solid #c8c8c8;
+    display: flex
+;
+    align-items: center;
+    gap: 4px;
+    max-height: 40px;
+  margin-left: auto;
+}
+
+.controls {
+  justify-content: space-between;
+}
+
+button#soon-label {
+    display: flex;
+    background: white;
+      align-items: center;
+    border-radius: 200px;
+    border: 1px solid #c8c8c8;
+    color: black;
+    font-weight: 400;
+    gap: 4px;
+  padding: 16px;
+  max-height: 40px;
+}
+
+.button-label {
+    border-radius: 200px;
+    background: #c8c8c8;
+    padding: 2px 4px 3px 4px;
+    display: none
+;
+    align-items: center;
+    align-content: center;
+    color: #f6f6f8;
+    font-size: 12px;
+}
+
+button:hover {
+      box-shadow: inset 0em 0 0.5em 0.3em #8c8c8c66;
+}
+
+button#soon-label:hover {
+      box-shadow: none;
+}
+
+.stage {
+aspect-ratio: 3/4;
+  background: #fff; border-radius: 18px; 
+  display: grid; place-items: top; padding: clamp(16px, 3vw, 36px);
+  position: relative; overflow: hidden;
+      border: 1px solid #c8c8c8;
+}
+.grain {
+  display: none;
+  position:absolute; inset:0; pointer-events:none; opacity:.08; mix-blend-mode:multiply;
+  background-image: radial-gradient(#000 1px, transparent 1px); background-size: 3px 3px;
+}
+
+button#soon {
+    display: flex;
+    gap: 5px;
+}
+
+.caps-text {
+      padding: 0px;
+    margin: 0px;
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    font-variant: all-petite-caps;
+    font-weight: 600;
+}
+.composition { width: 100%; position: relative; z-index: 1; }
+.line {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: -100px;          /* 1в1 как у тебя */
+  line-height: .66;
+  letter-spacing: -9px !important;
+  align-items: center;
+}
+.l1 { font-size: clamp(40px, 6vw, 110px); margin-bottom: .04em; }
+.l2 { font-size: clamp(48px, 7vw, 130px); }
+
+.ch {
+  display:inline-block; white-space: pre; transform-origin: 50% 50%;
+  color: #000;
+}
+
+
+/* обводка для случайных больших букв */
+.ch.outlined{
+    border: 0.05em solid currentColor;
+    border-radius: 500px;
+    padding: 0.15em 0.25em 0.20em 0.22em;
+    margin: -0.25em -0.2em -0.25em;
+    box-decoration-break: initial;
+}
+
+
+.composition {
+    width: 100%;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: center;
+    align-items: center;
+transition: transform .18s ease; 
+}
+
+/* оверлей-результат скругления */
+.overlay {
+  position: absolute; inset: 0; z-index: 2;
+  display: block;         /* не grid, чтобы ничего не влиялo на размер */
+  background-color: #fff; /* чтобы html2canvas видел белую подложку при пороге */
+  border-radius: 18px;    /* визуальная рамка UI сохраняется */
+  background-image: none; /* по умолчанию пусто */
+}
+.overlay[hidden] { display: none; }
+/*.overlay img { width: 100%; height: 100%; object-fit: cover; border-radius: 18px; } */
+
+footer {
+    margin-top: 18px;
+    opacity: .7;
+    font-size: 12px;
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+h1 {
+    padding: 0px;
+    margin: 0px;
+    font-size: 10px;
+    letter-spacing: 0.2px;
+    font-variant: all-petite-caps;
+    font-weight: 400;
+}
+
+.who {
+    padding: 0px;
+    margin: 0px;
+    font-size: 10px;
+    letter-spacing: 0.2px;
+    font-variant: all-petite-caps;
+    font-weight: 400;
+  color: #black;
+  
+}
+
+
+
+.header {
+    display: flex
+;
+    align-content: flex-start;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+
+.text-1 {
+    color: #0000007a;
+}
+
+textarea#custom {
+    border-radius: 200px;
+    padding: 9px 14px 4px 16px;
+    border: 1px solid #c8c8c8;
+    line-height: 1;
+    min-width: 80px !important;
+    max-width: 200px !important;
+    font-size: 12px;
+    /* height: 40px; */
+    max-height: 40px;
+    overflow: clip;
+}
+
+a {
+    color: black;
+  font-weight: 400;
+}
+
+.line-with-arrow {
+  position: relative;
+  width: 100px;
+  height: 2px;
+  background-color: black;
+}
+
+.line-with-arrow::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -10px; /* Расстояние от конца линии до стрелки */
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 10px solid black; /* Цвет и размер стрелки */
+}
+
+@media (max-width: 900px) {
+  .line {
+  letter-spacing: -6px !important;
+}
+  }
+
+@media (max-width: 768px) {
+  button.down {
+    margin-left: inherit;
+    margin-right: inherit;
+  }
+  
+    .controls {
+    justify-content: center;
+  }
+  
+  button, button.secondary,  button.down {
+    font-size: 16px;
+    max-height: 60px;
+    padding: 16px;
+  }
+  
+  textarea#custom {
+       padding: 12px 16px 7px 18px;
+    font-size: 14px;
+    max-height: 60px;
+  }
+  
+  .who, h1 {
+    font-size: 11px;
+  }
+  
+
+
+}
+
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    /* background: rgba(0, 0, 0, .35); */
+    display: grid;
+    place-items: center;
+    z-index: 9999;
+    padding: 16px;
+    align-content: space-between;
+    justify-items: center;
+    justify-content: end;
+    width: 100%;
+    height: 100%;
+}
+.modal{
+    background: #fff;
+    border: 1px solid #c8c8c8;
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+    display: grid;
+    gap: 5px;
+    padding: 16px;
+    scale: 0.8;
+    max-width: 450px;
+}
+.modal-head{ display:flex; align-items:center; justify-content:space-between; }
+.modal-title{ font-size:14px; font-weight:600; letter-spacing:.2px; }
+.icon-btn{
+  border:1px solid #c8c8c8; border-radius:10px; background:#fff; cursor:pointer;
+  padding: 6px 10px; line-height:1;
+}
+.modal-body{
+  display:grid; grid-template-columns: 1fr 1fr; gap:10px;
+}
+.modal-body label{
+  font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+.modal-body input[type="color"]{ width:32px; height:32px; padding:0; border:0; background:none; }
+.modal-body input[type="range"]{ width:140px; }
+.modal-foot{
+  display:flex; justify-content:flex-end; gap:8px;
+}
+#gradDone{ background:#111; color:#fff; border:0; border-radius:60px; padding:10px 14px; cursor:pointer; }
+@media (max-width:480px){
+  .modal-body{ grid-template-columns: 1fr; }
+}
+
+/* Скрывать модалку, когда стоит hidden */
+.modal-backdrop[hidden] { 
+  display: none !important; 
+}
+
+/* Можно и глобально, чтобы другие элементы с hidden не «пробивались» */
+[hidden] { 
+  display: none !important; 
+}
+</script>
