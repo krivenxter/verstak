@@ -1,4 +1,3 @@
-
 // === ДАННЫЕ ===
 const PHRASES = [
   ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
@@ -127,6 +126,7 @@ function resetRoundState() {
 }
 
 
+const overlay = document.getElementById('overlay');
 overlay.classList.remove('threshold-only');
 
 
