@@ -4,20 +4,32 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VERSTAK — Генератор типографической композиции</title>
+  <title>Генератор типографической композиции</title>
 
   <!-- Google Fonts (странные + базовые, с кириллицей) -->
-  <link href="https://fonts.googleapis.com/css2?family=Alice&family=Anonymous+Pro:wght@400;700&family=Bitter:wght@400;700&family=Comfortaa:wght@400;700&family=Cormorant+Garamond:wght@400;700&family=Didact+Gothic&family=Exo+2:wght@400;700&family=Forum&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Jura:wght@400;700&family=Kelly+Slab&family=Kurale&family=Lobster&family=Marck+Script&family=Montserrat:wght@400;700&family=Neucha&family=Noto+Sans+Mono:wght@400;700&family=Noto+Serif+Display:wght@400;700&family=Oranienbaum&family=Oswald:wght@400;700&family=PT+Mono&family=PT+Sans:wght@400;700&family=PT+Serif:wght@400;700&family=Philosopher:wght@400;700&family=Play:wght@400;700&family=Playfair+Display:wght@400;700&family=Poiret+One&family=Roboto:wght@400;700&family=Rubik:wght@400;700&family=Ruslan+Display&family=Russo+One&family=Stalinist+One&family=Tenor+Sans&family=Ubuntu:wght@400;700&family=Unbounded:wght@400;700&family=Yeseva+One&display=swap" rel="stylesheet">
- <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Alice&family=Anonymous+Pro:wght@400;700&family=Bitter:wght@400;700&family=Comfortaa:wght@400;700&family=Cormorant+Garamond:wght@400;700&family=Didact+Gothic&family=Exo+2:wght@400;700&family=Forum&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Jura:wght@400;700&family=Kelly+Slab&family=Kurale&family=Lobster&family=Marck+Script&family=Montserrat:wght@400;700&family=Neucha&family=Noto+Sans+Mono:wght@400;700&family=Noto+Serif+Display:wght@400;700&family=Oranienbaum&family=Oswald:wght@400;700&family=PT+Mono&family=PT+Sans:wght@400;700&family=PT+Serif:wght@400;700&family=Philosopher:wght@400;700&family=Play:wght@400;700&family=Playfair+Display:wght@400;700&family=Poiret+One&family=Roboto:wght@400;700&family=Rubik:wght@400;700&family=Ruslan+Display&family=Russo+One&family=Stalinist+One&family=Tenor+Sans&family=Ubuntu:wght@400;700&family=Unbounded:wght@400;700&family=Yeseva+One&family=Comforter&family=Great+Vibes&family=Manrope:wght@200..800&family=Oi&family=Pixelify+Sans:wght@400..700&family=Reggae+One&family=Rubik+Iso&family=Rubik+Puddles&family=Rubik+Wet+Paint&family=Tektur:wght@400..900&family=Unbounded:wght@200..900&family=Viaoda+Libre&display=swap" rel="stylesheet">
+   <link rel="stylesheet" href="style.css" />
+
   <!-- html2canvas для PNG -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
   <div class="app">
+    <div class="left">
     <div class="header">
        <h1>Генератор типографической композиции</h1>
-      <div class="who">VERSTAK </div>
-        <div class="who">Навайбкодил — <a href="https://krivenxter.github.io/">Олег Кривенко</a></div></div>
+      <div class="who-2"><svg width="62" height="18" viewBox="0 0 145 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M0.132474 3.84716C-0.433176 1.92557 1.00727 0 3.01038 0H5.92123C7.57809 0 8.92123 1.34315 8.92123 3V9.08268C8.92123 9.86544 9.55579 10.5 10.3386 10.5V10.5C11.1213 10.5 11.7559 9.86544 11.7559 9.08268V3C11.7559 1.34315 13.099 0 14.7559 0H17.6667C19.6698 0 21.1103 1.92557 20.5446 3.84716L16.4235 17.8472C16.0478 19.1236 14.8762 20 13.5456 20H7.1315C5.80093 20 4.62934 19.1236 4.2536 17.8472L0.132474 3.84716Z" fill="black"/>
+<path d="M21.8543 3C21.8543 1.34315 23.1974 0 24.8543 0H38.6967C40.3536 0 41.6967 1.34315 41.6967 3V4C41.6967 5.65685 40.3536 7 38.6967 7H32.7755C32.2232 7 31.7755 7.44772 31.7755 8V8C31.7755 8.55228 32.2232 9 32.7755 9H39.6967C40.8013 9 41.6967 9.89543 41.6967 11V11C41.6967 12.1046 40.8013 13 39.6967 13H32.7755C32.2232 13 31.7755 13.4477 31.7755 14V14C31.7755 14.5523 32.2232 15 32.7755 15H39.1967C40.5775 15 41.6967 16.1193 41.6967 17.5V17.5C41.6967 18.8807 40.5775 20 39.1967 20H24.8543C23.1974 20 21.8543 18.6569 21.8543 17V3Z" fill="black"/>
+<path d="M64.3738 3C64.3738 1.34315 65.717 0 67.3738 0H81.2163C82.8732 0 84.2163 1.34315 84.2163 3V4C84.2163 5.65685 82.8732 7 81.2163 7H76.7124C76.1601 7 75.7124 7.44772 75.7124 8V8C75.7124 8.55228 76.1601 9 76.7124 9H81.2163C82.8732 9 84.2163 10.3431 84.2163 12V17C84.2163 18.6569 82.8732 20 81.2163 20H66.8738C65.4931 20 64.3738 18.8807 64.3738 17.5V17.5C64.3738 16.1193 65.4931 15 66.8738 15H71.8778C72.43 15 72.8778 14.5523 72.8778 14V14C72.8778 13.4477 72.43 13 71.8778 13H67.3739C65.717 13 64.3738 11.6569 64.3738 10V3Z" fill="black"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M62.9565 10C62.9565 11.6569 61.6134 13 59.9565 13H55.4526C54.9003 13 54.4526 13.4477 54.4526 14V14C54.4526 14.5523 54.9003 15 55.4526 15H60.4565C61.8372 15 62.9565 16.1193 62.9565 17.5V17.5C62.9565 18.8807 61.8372 20 60.4565 20H55.9526C55.1242 20 54.4526 19.3284 54.4526 18.5V18.4173C54.4526 17.6346 53.8181 17 53.0353 17V17C52.2525 17 51.618 17.6346 51.618 18.4173V18.5C51.618 19.3284 50.9464 20 50.118 20H46.1141C44.4572 20 43.1141 18.6569 43.1141 17V3C43.1141 1.34315 44.4572 0 46.1141 0H59.9565C61.6134 0 62.9565 1.34315 62.9565 3V10ZM53.0353 8C52.2525 8 51.618 8.63456 51.618 9.41732V9.58268C51.618 10.3654 52.2525 11 53.0353 11V11C53.8181 11 54.4526 10.3654 54.4526 9.58268V9.41732C54.4526 8.63456 53.8181 8 53.0353 8V8Z" fill="black"/>
+<path d="M84.8445 3C84.8445 1.34315 86.1876 0 87.8445 0H101.687C103.344 0 104.687 1.34315 104.687 3V4.09581C104.687 5.25809 104.016 6.31578 102.964 6.81049L102.158 7.18951C101.106 7.68422 100.435 8.74191 100.435 9.90419V17C100.435 18.6569 99.0918 20 97.435 20H92.0964C90.4395 20 89.0964 18.6569 89.0964 17V9.90419C89.0964 8.74191 88.4251 7.68422 87.3733 7.18951L86.5675 6.81049C85.5158 6.31579 84.8445 5.25809 84.8445 4.09581V3Z" fill="black"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M123.591 16.1818C124.134 18.0969 122.696 20 120.705 20H116.253C115.424 20 114.753 19.3284 114.753 18.5V18.4173C114.753 17.6346 114.118 17 113.335 17V17C112.552 17 111.918 17.6346 111.918 18.4173V18.5C111.918 19.3284 111.246 20 110.418 20H105.965C103.975 20 102.536 18.0969 103.079 16.1818L107.047 2.18184C107.413 0.890944 108.592 0 109.934 0H116.737C118.078 0 119.257 0.890947 119.623 2.18184L123.591 16.1818ZM113.335 8C112.552 8 111.918 8.63455 111.918 9.41732V9.58268C111.918 10.3654 112.552 11 113.335 11V11C114.118 11 114.753 10.3654 114.753 9.58268V9.41732C114.753 8.63455 114.118 8 113.335 8V8Z" fill="black"/>
+<path d="M125.158 3C125.158 1.34315 126.501 0 128.158 0H130.661C132.318 0 133.661 1.34315 133.661 3V9.58269C133.661 10.3654 134.296 11 135.079 11V11C135.862 11 136.496 10.3654 136.496 9.58269V3C136.496 1.34315 137.839 0 139.496 0H142C143.657 0 145 1.34315 145 3V10C145 11.6569 143.657 13 142 13H137.496C136.944 13 136.496 13.4477 136.496 14V14C136.496 14.5523 136.944 15 137.496 15H142.5C143.881 15 145 16.1193 145 17.5V17.5C145 18.8807 143.881 20 142.5 20H137.996C137.168 20 136.496 19.3284 136.496 18.5V18.4173C136.496 17.6346 135.862 17 135.079 17V17C134.296 17 133.661 17.6346 133.661 18.4173V18.5C133.661 19.3284 132.99 20 132.161 20H128.158C126.501 20 125.158 18.6569 125.158 17V3Z" fill="black"/>
+</svg>
+
+ </div>
+        <div class="who-3">Навайбкодил: <a href="https://krivenxter.github.io/"> Олег Кривенко</a></div></div>
   
       <div class="controls">
       <button id="btn">Сгенерить</button>
@@ -37,6 +49,8 @@
          
  <button id="micro" class="secondary">Мелкий текст</button>       
         <button id="cringe" class="secondary">Пузыри</button>
+        <button id="crosses" class="secondary">Кресты</button>
+
 <button id="bgBtn" class="secondary">Фон ✓</button>
 <button id="bgClear" class="secondary">Фон ×</button>
 
@@ -51,6 +65,15 @@
   </svg></button>
           
     </div>
+      <footer>
+ 
+            <div class="who-1"><a href="https://t.me/okrivenko">Вопросы сюда</a></div> 
+            <div class="who-3">Обновлено 11 Авг. 25'</div>
+    
+  
+  </footer>
+      </div>
+
       
 <!-- мини-попап для действий по силуэту -->
 <div id="silhouetteMenu" class="action-popover" hidden>
@@ -68,6 +91,8 @@
       <div id="composition" class="composition" aria-live="polite">
         <div id="line1" class="line l1"></div>
         <div id="line2" class="line l2"></div>
+        <div id="decors" class="decors" aria-hidden="true"></div>
+
       </div>
 
       <!-- оверлей для результата скругления (не ломает DOM) -->
@@ -76,14 +101,13 @@
 </div>
 
     </div>
-
-    <footer>
- 
-            <div class="who"><a href="https://t.me/okrivenko">Вопросы сюда</a></div> 
-            <div class="who">Обновлено 11 Авг. 25'</div>
     
-  
-  </div>
+    <div class="mob-podval">
+   <div class="who"><a href="https://t.me/okrivenko">Вопросы сюда</a></div> 
+            <div class="who">Обновлено 11 Авг. 25'</div>
+      </div>
+    
+    
     
     <!-- В САМОМ НИЗУ страницы, перед </body> -->
 <div id="gradModal" class="modal-backdrop" hidden>
