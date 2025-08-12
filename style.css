@@ -62,8 +62,8 @@ body {
   opacity:.9;
 }
 /* чуть рандомим размер через data-size (см. JS) */
-.micro[data-size="lg"]{ font-size:20px; }
-.micro[data-size="md"]{ font-size:18px; }
+.micro[data-size="lg"]{ font-size:18px; }
+.micro[data-size="md"]{ font-size:14px; }
 
 /* мелкий текст — контейнер внутри composition */
 .micro-row {
