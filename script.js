@@ -182,7 +182,7 @@ async function roundCorners() {
     ctx.drawImage(canvas, 0, 0);
     ctx.filter = 'none';
 
-    const THRESHOLD = 135;
+    const THRESHOLD = 140;
     const img = ctx.getImageData(0, 0, w, h);
     const d   = img.data;
 
@@ -443,6 +443,30 @@ document.addEventListener('keydown', (e)=>{
   if (!gradModal?.hidden && e.key === 'Escape') closeGrad();
 });
 
+function randomGradient() {
+  // Генерация случайного цвета в hex
+  const randomColor = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+
+  // Случайные цвета
+  gradA.value = randomColor();
+  gradB.value = randomColor();
+  gradC.value = randomColor();
+
+  // Случайный угол от 0 до 360
+  gradAngle.value = rand(0, 360);
+
+  // Смещения (p1 < p2, но с отступом, чтобы был видимый B)
+  let p1 = rand(10, 45);
+  let p2 = rand(p1 + 10, 90);
+  gradBias1.value = p1;
+  gradBias2.value = p2;
+
+  applyGradientLive(); // Применить сразу
+}
+
+document.getElementById('gradRandom')?.addEventListener('click', randomGradient);
+
+
 // Живое превью
 [gradA, gradB, gradC, gradAngle, gradBias1, gradBias2].forEach(el=>{
   el?.addEventListener('input', applyGradientLive);
@@ -693,7 +717,7 @@ function toggleCrosses(){
     return;
   }
 
-  const howMany = rand(2, 5);
+  const howMany = rand(1, 5);
 
   // 1. Берём габариты всей типографической группы
   const textRect = composition.getBoundingClientRect();
@@ -726,7 +750,7 @@ function toggleCrosses(){
     el.style.setProperty('--cross-thickness', thickness + 'px');
     el.style.left = x + 'px';
     el.style.top  = y + 'px';
-    el.style.setProperty('--cross-opacity', (rand(70, 95) / 100).toString());
+    el.style.setProperty('--cross-opacity', (rand(100, 100) / 100).toString());
 
     decors.appendChild(el);
   }
