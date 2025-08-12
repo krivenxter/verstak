@@ -143,7 +143,7 @@ button {
       font-variant: all-petite-caps;
     letter-spacing: -0.2px;
   border: 0; padding: 16px 16px; border-radius: 50px; cursor: pointer;
-  background: #111; color: #fff; box-shadow: 0 6px 14px rgba(0,0,0,.15);
+  background: #111; color: #fff; 
   transition: transform .06s ease, box-shadow .2s ease;
       max-height: 40px;
 }
