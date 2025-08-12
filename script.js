@@ -125,8 +125,6 @@ function resetRoundState() {
   if (menu) menu.hidden = true;
 }
 
-
-const overlay = document.getElementById('overlay');
 overlay.classList.remove('threshold-only');
 
 
