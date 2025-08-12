@@ -1,4 +1,4 @@
-<script>
+
 // === ДАННЫЕ ===
 const PHRASES = [
   ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
@@ -702,4 +702,3 @@ document.getElementById('download').addEventListener('click', downloadPng);
 // первичный рендер
 generate();
 
-</script>
