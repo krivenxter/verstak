@@ -15,12 +15,14 @@ const FONT_POOL = [
   'IBM Plex Mono','JetBrains Mono','PT Mono','Noto Sans Mono','Anonymous Pro',
   'Oswald','Rubik','Montserrat','Exo 2','Play','Tenor Sans','Didact Gothic','Jura','Ubuntu',
   'Cormorant Garamond','Playfair Display','PT Serif','Noto Serif Display','Oranienbaum','Bitter',
-  'PT Sans','Roboto','Neucha','Comfortaa','Russo One'
+  'PT Sans','Roboto','Neucha','Comfortaa','Russo One', // новые из твоей ссылки:
+  'Comforter','Great Vibes','Manrope','Oi','Pixelify Sans',
+  'Reggae One','Rubik Iso','Rubik Puddles','Rubik Wet Paint',
+  'Tektur','Viaoda Libre'
 ];
 
 const SANS_POOL = [
-  'Roboto','PT Sans','Montserrat','Rubik','Oswald','Exo 2','Ubuntu',
-  'Didact Gothic','Tenor Sans','Play','Unbounded'
+  'Manrope'
 ];
 
 // === ШОРТКАТЫ ===
@@ -39,6 +41,10 @@ const actCutBg       = document.getElementById('actCutBg');
 const actFill        = document.getElementById('actFill');
 const actGrad        = document.getElementById('actGrad');
 const silhouetteFill = document.getElementById('silhouetteFill');
+
+const btnCrosses = document.getElementById('crosses');
+const decors     = document.getElementById('decors');
+
 
 
 let currentBgUrl = ''; // для revokeObjectURL
@@ -70,8 +76,8 @@ function renderWord(el, word, fonts){
 
     // Разный диапазон для мобилок и десктопа
     const scale = isMobile 
-      ? rand(120, 222) / 100 // буквы чуть крупнее на мобилке
-      : rand(92, 192) / 100; // оригинал для десктопа
+      ? rand(142, 242) / 100 // буквы чуть крупнее на мобилке
+      : rand(82, 182) / 100; // оригинал для десктопа
 
     span.style.fontSize = scale + 'em';
     span.style.fontWeight = rand(1,3) ? 900 : 500;
@@ -124,6 +130,7 @@ function resetRoundState() {
   clearSilhouetteFill();
   if (menu) menu.hidden = true;
 }
+
 
 overlay.classList.remove('threshold-only');
 
@@ -669,6 +676,68 @@ btnCringe?.addEventListener('click', () => {
   applyCompositionShift();
 });
 
+
+// === КРЕСТЫ ===
+function clearCrosses(){
+  if (!decors) return;
+  decors.innerHTML = '';
+}
+
+function toggleCrosses(){
+  if (!decors) return;
+
+  // если уже есть кресты — выключаем
+  if (decors.childElementCount > 0){
+    clearCrosses();
+    resetRoundState();
+    return;
+  }
+
+  const howMany = rand(2, 5);
+
+  // 1. Берём габариты всей типографической группы
+  const textRect = composition.getBoundingClientRect();
+  const l1Rect = line1.getBoundingClientRect();
+  const l2Rect = line2.getBoundingClientRect();
+
+  // границы буквенной композиции (верх по верхней строке, низ по нижней строке)
+  const minX = Math.min(l1Rect.left, l2Rect.left) - textRect.left;
+  const maxX = Math.max(l1Rect.right, l2Rect.right) - textRect.left;
+  const minY = Math.min(l1Rect.top, l2Rect.top) - textRect.top;
+  const maxY = Math.max(l1Rect.bottom, l2Rect.bottom) - textRect.top;
+
+  // 2. Делаем отступ вокруг букв
+  const pad = 40;
+  const areaLeft   = Math.max(0, minX - pad);
+  const areaTop    = Math.max(0, minY - pad);
+  const areaRight  = Math.min(textRect.width, maxX + pad);
+  const areaBottom = Math.min(textRect.height, maxY + pad);
+
+  // 3. Генерация крестов в этом ограниченном прямоугольнике
+  for (let i = 0; i < howMany; i++) {
+    const s = rand(18, 42); // размер плюса
+    const thickness = Math.max(4, Math.round(s * 0.08));
+    const x = rand(areaLeft, areaRight - s);
+    const y = rand(areaTop, areaBottom - s);
+
+    const el = document.createElement('div');
+    el.className = 'cross';
+    el.style.setProperty('--cross-size', s + 'px');
+    el.style.setProperty('--cross-thickness', thickness + 'px');
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    el.style.setProperty('--cross-opacity', (rand(70, 95) / 100).toString());
+
+    decors.appendChild(el);
+  }
+
+  resetRoundState();
+}
+
+
+btnCrosses?.addEventListener('click', toggleCrosses);
+
+
 // === СДВИГ КОМПОЗИЦИИ (вверх/центр/вниз) ===
 let compShiftState = 0;                  // -1 = вниз, 0 = центр, 1 = вверх
 const SHIFT_FACTOR = 0.35;                // ~ «200px» как доля высоты composition
@@ -699,4 +768,3 @@ document.getElementById('download').addEventListener('click', downloadPng);
 
 // первичный рендер
 generate();
-
