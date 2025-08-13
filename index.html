@@ -7,7 +7,7 @@
   <title>Генератор типографической композиции</title>
 
   <!-- Google Fonts (странные + базовые, с кириллицей) -->
-  <link href="https://fonts.googleapis.com/css2?family=Alice&family=Anonymous+Pro:wght@400;700&family=Bitter:wght@400;700&family=Comfortaa:wght@400;700&family=Cormorant+Garamond:wght@400;700&family=Didact+Gothic&family=Exo+2:wght@400;700&family=Forum&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Jura:wght@400;700&family=Kelly+Slab&family=Kurale&family=Lobster&family=Marck+Script&family=Montserrat:wght@400;700&family=Neucha&family=Noto+Sans+Mono:wght@400;700&family=Noto+Serif+Display:wght@400;700&family=Oranienbaum&family=Oswald:wght@400;700&family=PT+Mono&family=PT+Sans:wght@400;700&family=PT+Serif:wght@400;700&family=Philosopher:wght@400;700&family=Play:wght@400;700&family=Playfair+Display:wght@400;700&family=Poiret+One&family=Roboto:wght@400;700&family=Rubik:wght@400;700&family=Ruslan+Display&family=Russo+One&family=Stalinist+One&family=Tenor+Sans&family=Ubuntu:wght@400;700&family=Unbounded:wght@400;700&family=Yeseva+One&family=Comforter&family=Great+Vibes&family=Manrope:wght@200..800&family=Oi&family=Pixelify+Sans:wght@400..700&family=Reggae+One&family=Rubik+Iso&family=Rubik+Puddles&family=Rubik+Wet+Paint&family=Tektur:wght@400..900&family=Inter:wght@400..900&family=Unbounded:wght@200..900&family=Viaoda+Libre&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Alice&family=Anonymous+Pro:wght@400;700&family=Bitter:wght@400;700&family=Comfortaa:wght@400;700&family=Cormorant+Garamond:wght@400;700&family=Didact+Gothic&family=Exo+2:wght@400;700&family=Forum&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Jura:wght@400;700&family=Kelly+Slab&family=Kurale&family=Lobster&family=Marck+Script&family=Montserrat:wght@400;700&family=Neucha&family=Noto+Sans+Mono:wght@400;700&family=Noto+Serif+Display:wght@400;700&family=Oranienbaum&family=Oswald:wght@400;700&family=PT+Mono&family=PT+Sans:wght@400;700&family=PT+Serif:wght@400;700&family=Philosopher:wght@400;700&family=Play:wght@400;700&family=Playfair+Display:wght@400;700&family=Poiret+One&family=Roboto:wght@400;700&family=Rubik:wght@400;700&family=Ruslan+Display&family=Russo+One&family=Stalinist+One&family=Tenor+Sans&family=Ubuntu:wght@400;700&family=Unbounded:wght@400;700&family=Yeseva+One&family=Comforter&family=Great+Vibes&family=Manrope:wght@200..800&family=Oi&family=Pixelify+Sans:wght@400..700&family=Rubik+Iso&family=Rubik+Puddles&family=Rubik+Wet+Paint&family=Tektur:wght@400..900&family=Inter:wght@400..900&family=Unbounded:wght@200..900&family=Viaoda+Libre&display=swap" rel="stylesheet">
    <link rel="stylesheet" href="style.css" />
 
   <!-- html2canvas для PNG -->
@@ -59,6 +59,8 @@
 <input id="bgUpload" type="file" accept="image/*" hidden>
 
 <button id="round" class="secondary">Силуэт</button>
+        <button id="colorToggle" class="secondary">Цвет</button>
+<button id="undoAll" class="secondary" hidden>Вернуть</button>
   <button id="download" class="down">Скачать  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
        xmlns="http://www.w3.org/2000/svg">
     <path d="M20 6V18C20 18.5304 19.7893 19.0391 19.4142 19.4142C19.0391 19.7893 18.5304 20 18 20H6C5.46957 20 4.96086 19.7893 4.58579 19.4142C4.21071 19.0391 4 18.5304 4 18V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6ZM18 6H6V12.38L8.19 10.19L13.42 15.42L14.42 14.42C14.7241 14.1767 15.107 14.0536 15.4959 14.0738C15.8848 14.0941 16.2528 14.2564 16.53 14.53L18 16V6ZM13 9.5C13 9.10218 13.158 8.72064 13.4393 8.43934C13.7206 8.15804 14.1022 8 14.5 8C14.8978 8 15.2794 8.15804 15.5607 8.43934C15.842 8.72064 16 9.10218 16 9.5C16 9.89782 15.842 10.2794 15.5607 10.5607C15.2794 10.842 14.8978 11 14.5 11C14.1022 11 13.7206 10.842 13.4393 10.5607C13.158 10.2794 13 9.89782 13 9.5Z" fill="black"/>
@@ -75,14 +77,11 @@
       </div>
 
       
-<!-- мини-попап для действий по силуэту -->
-<div id="silhouetteMenu" class="action-popover" hidden>
-  <button id="actCutBg"  type="button" class="secondary">Вырезать фон</button>
-  <button id="actFill"   type="button" class="secondary">Покрасить цвет</button>
-  <button id="actGrad"   type="button" class="secondary">Покрасить градиент</button>
-</div>
 
     <div id="stage" class="stage">
+      <div id="bgLayer" class="bg" hidden aria-hidden="true"></div>
+<div id="grain" class="grain" hidden aria-hidden="true"></div>
+
 <div id="bgLayer" class="bg" hidden aria-hidden="true"></div>
 
 
@@ -117,6 +116,7 @@
       <button id="gradClose" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
     </div>
    <div class="modal-body">
+     
   <label>Цвет 1
     <input type="color" id="gradA" value="#c7c7c7">
   </label>
@@ -140,6 +140,13 @@
   <label>Смещение между Цвет 2 и Цвет 3 (%)
     <input type="range" id="gradBias2" min="0" max="100" value="85">
   </label>
+     <label>Шум (интенсивность %)
+  <input type="range" id="gradNoise" min="0" max="40" value="0">
+</label>
+<label>Размер зерна (px)
+  <input type="range" id="gradNoiseSize" min="300" max="800" value="6">
+</label>
+
 </div>
 
     <div class="modal-foot">
@@ -149,6 +156,27 @@
     </div>
   </div>
 </div>
+    <!-- Модалка цвета -->
+<div id="colorModal" class="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="colorTitle">
+    <div class="modal-head">
+      <div id="colorTitle" class="modal-title">Цвет композиции</div>
+      <button id="colorClose" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-body">
+      <label>Цвет
+        <input type="color" id="colorPick" value="#111111">
+      </label>
+      <label>Непрозрачность силуэта (%)
+        <input type="range" id="colorAlpha" min="0" max="100" value="100">
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button id="colorDone" type="button">Готово</button>
+    </div>
+  </div>
+</div>
+
 <script src="script.js"></script>
 </body>
 </html>
