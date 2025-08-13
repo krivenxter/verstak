@@ -3,7 +3,7 @@ const PHRASES = [
   ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
   ["диска","царапина"],["плеера","шум"],["кассеты","треск"],
   ["экрана","блик"],["обоев","градиент"],["баннера","пиксель"],
-  ["джинсов","клёш"],["логотипа","отблеск"],["пейджера","сигнал"],
+  ["джинсов","клёш"],["папино","молоко"], ["логотипа","отблеск"],["пейджера","сигнал"],
   ["дисковода","стук"],["обложки","блеск"],["модема","писк"],
   ["принтера","запах"],["сайта","фон"],["курсора","след"],
   ["обоев","узор"],["кассетника","скрип"],
@@ -16,8 +16,7 @@ const FONT_POOL = [
   'Oswald','Rubik','Montserrat','Exo 2','Play','Tenor Sans','Didact Gothic','Jura','Ubuntu',
   'Cormorant Garamond','Playfair Display','PT Serif','Noto Serif Display','Oranienbaum','Bitter',
   'PT Sans','Roboto','Neucha','Comfortaa','Russo One', // новые из твоей ссылки:
-  'Comforter','Great Vibes','Manrope','Oi','Pixelify Sans',
-  'Reggae One','Rubik Iso','Rubik Puddles','Rubik Wet Paint',
+  'Comforter','Great Vibes','Manrope','Oi','Pixelify Sans','Rubik Iso','Rubik Puddles','Rubik Wet Paint',
   'Tektur','Viaoda Libre'
 ];
 
@@ -40,14 +39,32 @@ const btnCringe   = document.getElementById('cringe');
 const composition = document.getElementById('composition');
 
 const roundBtn       = document.getElementById('round');
-const menu           = document.getElementById('silhouetteMenu');
-const actCutBg       = document.getElementById('actCutBg');
-const actFill        = document.getElementById('actFill');
-const actGrad        = document.getElementById('actGrad');
+
 const silhouetteFill = document.getElementById('silhouetteFill');
+
+const grain = document.getElementById('grain');
+
+let noiseURL = '';          // кэш dataURL шума
+let noiseIntensity = 0;     // 0..1
+let noiseSizePx = 200;        // размер «зерна» в px (размер тайла)
+
 
 const btnCrosses = document.getElementById('crosses');
 const decors     = document.getElementById('decors');
+// цвет/откат
+const undoBtn      = document.getElementById('undoAll');
+const colorBtn     = document.getElementById('colorToggle');
+const colorModal   = document.getElementById('colorModal');
+const colorPick    = document.getElementById('colorPick');
+const colorAlpha   = document.getElementById('colorAlpha');
+const colorClose   = document.getElementById('colorClose');
+const colorDone    = document.getElementById('colorDone');
+
+let currentInk   = '#111111';   // текущий цвет композиции/силуэта
+let lastBaseHTML = '';          // «чистая» композиция сразу после Сгенерить
+
+
+
 
 
 
@@ -136,22 +153,31 @@ function clearSilhouetteFill(){
 let isRounded = false;
 let roundedURL = '';
 
-function resetRoundState() {
+function resetRoundState({force=false} = {}) {
+  if (!force && isRounded) return;
+
   isRounded = false;
-  roundedURL = '';
   maskURL = '';
 
-  // Оверлей ДОЛЖЕН быть скрыт в обычном режиме
+  // слой-поверхность убираем
   overlay.hidden = true;
   overlay.style.backgroundImage = '';
+  overlay.style.backgroundColor = '';
   overlay.classList.remove('threshold-only');
+  overlay.style.transform = '';
 
-  const btn = document.getElementById('round');
-  if (btn) btn.textContent = 'Силуэт';
-
+  // ребёнка-слоя чистим
   clearSilhouetteFill();
-  if (menu) menu.hidden = true;
+
+  // показываем «живую» композицию
+  composition.style.visibility = 'visible';
+
+  // кнопка «Вернуть»
+  if (undoBtn) undoBtn.hidden = true;
 }
+
+
+
 
 
 overlay.classList.remove('threshold-only');
@@ -165,7 +191,7 @@ function removeMicro(){
 
 // === ГЕНЕРАЦИЯ КОМПОЗИЦИИ ===
 function generate(){
-  resetRoundState();
+  resetRoundState({force:true});
   removeMicro();
   stage.querySelectorAll('.ch.outlined').forEach(n => n.classList.remove('outlined'));
 
@@ -179,213 +205,156 @@ function generate(){
   document.querySelector('.l1').style.letterSpacing = rand(-3, -2) + 'px';
   document.querySelector('.l2').style.letterSpacing = rand(-3, -2) + 'px';
 
-  applyCompositionShift(); // учесть текущее положение после перерисовки
+  // вернём видимость «живой» композиции
+  composition.style.visibility = 'visible';
+  overlay.style.transform = ''; // сбросим на всякий
 
-  updateFontSize();     // ← вот это
+  applyCompositionShift();
+  updateFontSize();
+
+// зафиксировать базовый цвет под текущую тему (light/normal)
+currentInk = stage.classList.contains('light') ? '#ffffff' : '#000000';
+composition.style.color = currentInk;
+
+
+undoBtn.hidden = true;
+
 }
+
+
 
 // === СКРУГЛИТЬ / ВЕРНУТЬ ===
 async function roundCorners() {
-  const btn = roundBtn;
+  if (isRounded) { undoAll(); return; }
 
-  // При первом нажатии — рендерим, при повторном — возвращаемся
-  if (!isRounded) {
-    // Сначала прячем, чтобы не захватить старый overlay
-    overlay.hidden = true;
+  // оффскрин-клон, чтобы не моргала страница
+  const snap = stage.cloneNode(true);
+  const r = stage.getBoundingClientRect();
+  snap.style.position = 'fixed';
+  snap.style.left = '-99999px';
+  snap.style.top  = '0';
+  snap.style.width  = r.width + 'px';
+  snap.style.height = r.height + 'px';
 
-    const canvas = await html2canvas(stage, { backgroundColor: null, scale: 2, useCORS: true });
-    const w = canvas.width, h = canvas.height;
-
-    // 1) Блюрим + делаем обычный threshold (для визуального превью)
-    const work = document.createElement('canvas');
-    work.width = w; work.height = h;
-    const ctx  = work.getContext('2d');
-
-    const BLUR_RADIUS = window.innerWidth <= 640 ? 3.5 : 3.5;
-    ctx.filter = `blur(${BLUR_RADIUS}px)`;
-    ctx.drawImage(canvas, 0, 0);
-    ctx.filter = 'none';
-
-    const THRESHOLD = 140;
-    const img = ctx.getImageData(0, 0, w, h);
-    const d   = img.data;
-
-    // Сохраним сразу вторую копию для маски
-    const imgMask = ctx.getImageData(0, 0, w, h);
-    const dm = imgMask.data;
-
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i+1], b = d[i+2];
-      const lum = 0.2126*r + 0.7152*g + 0.0722*b;
-
-      // Вариант для визуального threshold-превью: чёрные буквы на белом
-      const val = lum < THRESHOLD ? 0 : 255;
-      d[i] = d[i+1] = d[i+2] = val; d[i+3] = 255;
-
-      // Маска — наоборот: буквы белые (видимые), фон чёрный (прозрачный)
-    // ДОЛЖНО БЫТЬ (альфа-маска):
-const mval = lum < THRESHOLD ? 255 : 0;
-  dm[i] = dm[i+1] = dm[i+2] = 255;
-      dm[i+3] = mval;
-    }
-
-    ctx.putImageData(img, 0, 0);
-    roundedURL = work.toDataURL('image/png');
-
-    // Соберём maskURL
-    const maskCanvas = document.createElement('canvas');
-    maskCanvas.width = w; maskCanvas.height = h;
-    const mctx = maskCanvas.getContext('2d');
-    mctx.putImageData(imgMask, 0, 0);
-    maskURL = maskCanvas.toDataURL('image/png');
-
-    // Показать threshold как фон overlay и повесить маску для заливки
-overlay.hidden = false;
-overlay.style.backgroundImage = `url(${roundedURL})`;
-overlay.classList.add('threshold-only');
-
-clearSilhouetteFill();
-if (silhouetteFill){
-  silhouetteFill.style.webkitMaskImage = `url(${maskURL})`;
-  silhouetteFill.style.maskImage = `url(${maskURL})`;
-}
-
-    // Показать threshold как фон 
-
-    isRounded = true;
-    if (btn) btn.textContent = 'Вернуть';
-
-    // Показать меню действий рядом с кнопкой
-    openSilhouetteMenu();
-
-  } else {
-    // Возврат
-    overlay.hidden = true;
-    isRounded = false;
-    if (btn) btn.textContent = 'Силуэт';
-    if (menu) menu.hidden = true;
+  // в клоне убираем старую маску, чтобы не удвоить
+  const snapSil = snap.querySelector('#silhouetteFill');
+  if (snapSil) {
+    snapSil.style.webkitMaskImage = '';
+    snapSil.style.maskImage = '';
+    snapSil.classList.remove('active');
   }
-}
 
+  document.body.appendChild(snap);
 
-function openSilhouetteMenu(){
-  if (!menu || !roundBtn) return;
-  const btnRect = roundBtn.getBoundingClientRect();
-  // позиционируем относительно окна
-  menu.style.left = Math.round(btnRect.left) + 'px';
-  menu.style.top  = Math.round(btnRect.bottom + 8) + 'px';
-  menu.hidden = false;
-}
-
-
-function closeSilhouetteMenu(){
-  if (menu) menu.hidden = true;
-}
-
-
-document.addEventListener('click', (e)=>{
-  if (menu?.hidden) return;
-  const isClickInsideMenu = menu?.contains(e.target);
-  const isRoundBtn = e.target === roundBtn;
-  if (!isClickInsideMenu && !isRoundBtn) closeSilhouetteMenu();
-});
-
-
-function applyCutBg(){
-  if (!isRounded || !silhouetteFill) return;
-
-  const bg = getComputedStyle(bgLayer).backgroundImage;
-  if (!bg || bg === 'none'){
-    alert('Фоновой картинки нет — выбери Фон, а потом «Вырезать фон».');
-    return;
-  }
-  
-  // 1) кладём фон внутрь силуэта
-  silhouetteFill.style.background = '';
-  silhouetteFill.style.backgroundImage = bg;
-  silhouetteFill.classList.add('active');
-  
-    bgLayer.hidden = true;
-  
- // 3) убираем ч/б превью, чтобы не мешало
-  overlay.style.backgroundImage = 'none';
-  overlay.classList.remove('threshold-only');
-
-  closeSilhouetteMenu();
-}
-
-function applyFillColor(){
-  if (!isRounded || !silhouetteFill) return;
-  const color = prompt('Цвет силуэта (hex, rgb, etc):', '#111111');
-  if (!color) return;
-
-  silhouetteFill.style.backgroundImage = '';
-  silhouetteFill.style.background = color;
-  silhouetteFill.classList.add('active');
-
-  overlay.style.backgroundImage = 'none';
-  overlay.classList.remove('threshold-only');
-
-  closeSilhouetteMenu();
-}
-
-function applyFillGradient(){
-  if (!isRounded || !silhouetteFill) return;
-
-  const g = 'linear-gradient(135deg, #4d70ff 0%, #ff75bf 100%)';
-  silhouetteFill.style.backgroundImage = '';
-  silhouetteFill.style.background = g;
-  silhouetteFill.classList.add('active');
-
-  overlay.style.backgroundImage = 'none';
-  overlay.classList.remove('threshold-only');
-
-  closeSilhouetteMenu();
-}
-
-
-actCutBg?.addEventListener('click', applyCutBg);
-actFill ?.addEventListener('click', applyFillColor);
-actGrad ?.addEventListener('click', applyFillGradient);
-
-
-// === СКАЧАТЬ PNG: все эффекты, но без UI-рамки/радиуса ===
-async function downloadPng() {
-  const clone = stage.cloneNode(true);
-  const { width, height } = stage.getBoundingClientRect();
-  clone.style.width  = width + 'px';
-  clone.style.height = height + 'px';
-  clone.style.border = 'none';
-  clone.style.borderRadius = '0';
-
-  const cloneOverlay = clone.querySelector('.overlay');
-  if (cloneOverlay) cloneOverlay.style.borderRadius = '0';
-
-  clone.style.position = 'fixed';
-  clone.style.left = '-99999px';
-  clone.style.top  = '0';
-  document.body.appendChild(clone);
-
-  const canvas = await html2canvas(clone, {
-    backgroundColor: null,
+  const canvas = await html2canvas(snap, {
+    backgroundColor: '#ffffff',
     scale: 2,
     useCORS: true
   });
 
-  document.body.removeChild(clone);
+  document.body.removeChild(snap);
 
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'print.png';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
+  // собираем альфа-маску
+  const w = canvas.width, h = canvas.height;
+  const work = document.createElement('canvas');
+  work.width = w; work.height = h;
+  const ctx = work.getContext('2d');
+
+  ctx.filter = 'blur(3.5px)';
+  ctx.drawImage(canvas, 0, 0);
+  ctx.filter = 'none';
+
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data, THRESHOLD = 140;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i+1], b = d[i+2];
+    const lum = 0.2126*r + 0.7152*g + 0.0722*b;
+    d[i] = d[i+1] = d[i+2] = 255;   // белое
+    d[i+3] = lum < THRESHOLD ? 255 : 0; // альфа
+  }
+  ctx.putImageData(img, 0, 0);
+  maskURL = work.toDataURL('image/png');
+
+  // включаем слой-заливку по маске
+  const ink = currentInk || (stage.classList.contains('light') ? '#ffffff' : '#000000');
+  silhouetteFill.style.background = ink;
+  silhouetteFill.style.opacity = 1;
+  silhouetteFill.style.webkitMaskImage = `url(${maskURL})`;
+  silhouetteFill.style.maskImage      = `url(${maskURL})`;
+  silhouetteFill.classList.add('active');
+
+  overlay.style.background = 'transparent';
+  overlay.hidden = false;
+
+  // прячем «живую»
+  composition.style.visibility = 'hidden';
+
+  // переносим текущее смещение
+// ВАЖНО: НЕ переносим смещение, оно уже "запечено" в маске
+overlay.style.transform = '';
+silhouetteFill.style.transform = '';
+
+
+  isRounded = true;
+  if (undoBtn) undoBtn.hidden = false;
 }
+
+
+
+
+
+
+
+
+function undoAll(){
+  composition.style.visibility = 'visible';
+  resetRoundState({force:true});
+
+  overlay.style.transform = '';
+  silhouetteFill.style.transform = '';
+
+  if (undoBtn) undoBtn.hidden = true;
+}
+
+
+
+
+document.getElementById('undoAll')?.addEventListener('click', undoAll);
+
+
+function openColor(){ 
+  colorModal.hidden = false;
+  colorPick.value = currentInk;
+  colorAlpha.value = 100;
+}
+function closeColor(){ colorModal.hidden = true; }
+
+colorBtn?.addEventListener('click', openColor);
+colorClose?.addEventListener('click', closeColor);
+colorDone?.addEventListener('click', closeColor);
+colorModal?.addEventListener('click', e=>{ if(e.target===e.currentTarget) closeColor(); });
+
+// лайв-превью цвета
+colorPick?.addEventListener('input', ()=>{
+  currentInk = colorPick.value;
+  if (isRounded && silhouetteFill.classList.contains('active')) {
+    silhouetteFill.style.background = currentInk; // красим финальный силуэт
+  } else {
+    composition.style.color = currentInk;        // красим буквы/микро/кресты
+  }
+});
+
+
+// прозрачность только для силуэта (не трогаем обычный режим)
+colorAlpha?.addEventListener('input', ()=>{
+  if (isRounded && silhouetteFill.classList.contains('active')) {
+    silhouetteFill.style.opacity = (+colorAlpha.value/100).toFixed(2);
+  }
+});
+
+
+
+
 
 // === ГРАДИЕНТ — МОДАЛКА (3 цвета, 2 смещения) ===
 const gradToggle = document.getElementById('gradToggle');
@@ -400,6 +369,10 @@ const gradC      = document.getElementById('gradC');        // НОВОЕ
 const gradAngle  = document.getElementById('gradAngle');
 const gradBias1  = document.getElementById('gradBias1');    // НОВОЕ
 const gradBias2  = document.getElementById('gradBias2');    // НОВОЕ
+
+const gradNoise     = document.getElementById('gradNoise');
+const gradNoiseSize = document.getElementById('gradNoiseSize');
+
 
 // «перо» в процентах, сколько оставить на смешение вокруг границ
 const FEATHER = 8; // можешь 1..5 подобрать по вкусу
@@ -434,18 +407,36 @@ function buildThreeStopGradient() {
 }
 
 function applyGradientLive(){
-  bgLayer.style.backgroundImage = buildThreeStopGradient(); // ← используем мягкую сборку
+  bgLayer.style.backgroundImage = buildThreeStopGradient();
   bgLayer.hidden = false;
   resetRoundState();
+  applyGrain(); // ← чтобы интенсивность/размер сразу применялись
 }
+
+
 
 
 function openGrad(){
   if (!gradModal) return;
   gradModal.hidden = false;
-  // document.body.style.overflow = 'hidden'; // убрали
-  applyGradientLive(); // сразу показать текущий градиент
+  // текущие значения в UI
+  if (gradNoise)     gradNoise.value     = Math.round(noiseIntensity * 100);
+  if (gradNoiseSize) gradNoiseSize.value = noiseSizePx;
+  applyGradientLive(); // показать
 }
+
+gradNoise?.addEventListener('input', () => {
+  noiseIntensity = Math.max(0, Math.min(1, +gradNoise.value / 100));
+  applyGrain();
+});
+
+gradNoiseSize?.addEventListener('input', () => {
+  noiseSizePx = Math.max(1, +gradNoiseSize.value || 3);
+  applyGrain();
+});
+
+
+
 
 
 function closeGrad(){
@@ -485,7 +476,12 @@ function randomGradient() {
   gradBias1.value = p1;
   gradBias2.value = p2;
 
-  applyGradientLive(); // Применить сразу
+  noiseIntensity = Math.random() < .8 ? rand(5, 30) / 100 : 0; // иногда без шума
+  noiseSizePx = rand(300, 800);
+  if (gradNoise)     gradNoise.value     = Math.round(noiseIntensity * 90);
+  if (gradNoiseSize) gradNoiseSize.value = noiseSizePx;
+
+  applyGradientLive();
 }
 
 document.getElementById('gradRandom')?.addEventListener('click', randomGradient);
@@ -496,12 +492,29 @@ document.getElementById('gradRandom')?.addEventListener('click', randomGradient)
   el?.addEventListener('input', applyGradientLive);
 });
 
-// Убрать градиент
-gradClear?.addEventListener('click', ()=>{
-  bgLayer.style.backgroundImage = '';
+
+
+function clearBackgroundAll(){
+  // фон/градиент
+  bgLayer.style.backgroundImage   = '';
+  bgLayer.style.backgroundSize    = '';
+  bgLayer.style.backgroundRepeat  = '';
+  bgLayer.style.backgroundPosition= '';
   bgLayer.hidden = true;
+
+  // шум
+  noiseIntensity = 0;
+  noiseURL = '';                  // сброс кеша (на всякий случай)
+  applyGrain();                   // ← реально спрятать слой шума
+
   resetRoundState();
-});
+}
+
+// обе кнопки чистят всё
+document.getElementById('gradClear')?.addEventListener('click', clearBackgroundAll);
+document.getElementById('bgClear')?.addEventListener('click', clearBackgroundAll);
+
+
 
 // ==== helpers (можно оставить твои прежние) ====
 function loadImage(src){
@@ -538,15 +551,28 @@ function paintGradient(ctx, w, h, gradientStr){
   ctx.fillRect(0,0,w,h);
 }
 
+
+function getTranslateY(el){
+  const tr = getComputedStyle(el).transform;
+  if (!tr || tr === 'none') return 0;
+  // matrix(a,b,c,d,tx,ty)
+  const m = tr.match(/matrix\(([^)]+)\)/);
+  if (m) { const p = m[1].split(',').map(v=>parseFloat(v)); return p[5] || 0; }
+  const t = tr.match(/translateY\((-?\d+(\.\d+)?)px\)/i);
+  return t ? parseFloat(t[1]) : 0;
+}
+
 // ==== ПОЛНАЯ ЗАМЕНА downloadPng ====
+// ==== ПРАВИЛЬНЫЙ экспорт PNG с силуэтом и фоном ====
 async function downloadPng(){
-  const scale = 2;
+  const SCALE = window.devicePixelRatio || 2;
   const { width, height } = stage.getBoundingClientRect();
 
-  // 1) БАЗА: клон сцены, overlay скрыт (маски html2canvas не осилит)
+  // 1) база: клон без overlay (он у нас рисуется отдельно)
   const baseClone = stage.cloneNode(true);
-  const baseOverlay = baseClone.querySelector('#overlay');
-  if (baseOverlay) baseOverlay.hidden = true;
+  const baseOv = baseClone.querySelector('#overlay');
+  if (baseOv) baseOv.hidden = true;
+
   baseClone.style.position = 'fixed';
   baseClone.style.left = '-99999px';
   baseClone.style.top  = '0';
@@ -556,91 +582,61 @@ async function downloadPng(){
 
   const baseCanvas = await html2canvas(baseClone, {
     backgroundColor: null,
-    scale,
-    useCORS: true
+    scale: SCALE,
+    useCORS: true,
+    scrollX: 0,
+    scrollY: 0,
+    windowWidth: width,
+    windowHeight: height
   });
+
   document.body.removeChild(baseClone);
 
-  // 2) Готовим итоговый канвас
+  // 2) итоговый холст
   const out = document.createElement('canvas');
   out.width  = baseCanvas.width;
   out.height = baseCanvas.height;
   const octx = out.getContext('2d');
   octx.imageSmoothingEnabled = true;
 
-  // белый фон карточки
-  octx.fillStyle = '#fff';
-  octx.fillRect(0,0,out.width,out.height);
-
-  // базовая сцена (bgLayer в своём текущем состоянии, композиция, и т.д.)
+  // рисуем базу (фон, градиент и т.д.)
   octx.drawImage(baseCanvas, 0, 0);
-  
-  // Если включён "Силуэт" — в живом UI всё перекрывает белый overlay.
-// В экспорте делаем так же: сначала белим, потом рисуем threshold/заливку.
-if (isRounded) {
-  octx.fillStyle = '#fff';
-  octx.fillRect(0, 0, out.width, out.height);
-}
 
-
-  // 3) Если «Силуэт» не активен — сразу сохраняем
-  if (!isRounded){
-    return out.toBlob(saveBlob, 'image/png');
-  }
-
-  // 4) Если показывается ч/б превью без заливки — дорисуем поверх
-  const overlayBg = overlay.style.backgroundImage || '';
-  const onlyThreshold = overlayBg && overlayBg.includes('data:image') && !silhouetteFill.classList.contains('active');
-  if (onlyThreshold){
-    try {
-      const th = await loadImage(roundedURL);
-      octx.drawImage(th, 0, 0, out.width, out.height);
-    } catch(e) {/* ок, пропустим */}
-  }
-
-  // 5) Если выбрана ЗАЛИВКА/ВЫРЕЗАНИЕ — рисуем ЕЁ СВЕРХУ по альфа-маске
-  if (silhouetteFill.classList.contains('active')){
-    const fillStr = getComputedStyle(silhouetteFill).backgroundImage;
-    const fillCol = getComputedStyle(silhouetteFill).backgroundColor;
-
-    // 5.1 соберём слой заливки
+  // 3) если «Силуэт» активен — докладываем его по маске
+  if (isRounded && silhouetteFill.classList.contains('active') && maskURL){
     const fill = document.createElement('canvas');
     fill.width = out.width; fill.height = out.height;
     const fctx = fill.getContext('2d');
 
-    if (fillStr && fillStr.startsWith('linear-gradient')){
-      paintGradient(fctx, fill.width, fill.height, fillStr);
-    } else if (fillStr && fillStr.startsWith('url(')){
-      const url = fillStr.slice(4, -1).replaceAll('"','').replaceAll("'","");
-      try {
-        const img = await loadImage(url);
-        fctx.drawImage(img, 0, 0, fill.width, fill.height);
-      } catch(e){
-        // фолбэк — цвет, если картинка не подтянулась
-        fctx.fillStyle = (fillCol && fillCol !== 'rgba(0, 0, 0, 0)') ? fillCol : '#000';
-        fctx.fillRect(0,0,fill.width,fill.height);
-      }
+    const bgImg = getComputedStyle(silhouetteFill).backgroundImage;
+    const bgCol = getComputedStyle(silhouetteFill).backgroundColor;
+
+    if (bgImg && bgImg.startsWith('linear-gradient')) {
+      paintGradient(fctx, fill.width, fill.height, bgImg);
+    } else if (bgImg && bgImg.startsWith('url(')) {
+      const url = bgImg.slice(4, -1).replaceAll('"','').replaceAll("'","");
+      try { const img = await loadImage(url); fctx.drawImage(img, 0, 0, fill.width, fill.height); }
+      catch { fctx.fillStyle = (bgCol && bgCol !== 'rgba(0, 0, 0, 0)') ? bgCol : (currentInk || '#000'); fctx.fillRect(0,0,fill.width,fill.height); }
     } else {
-      fctx.fillStyle = (fillCol && fillCol !== 'rgba(0, 0, 0, 0)') ? fillCol : '#000';
+      fctx.fillStyle = (bgCol && bgCol !== 'rgba(0, 0, 0, 0)') ? bgCol : (currentInk || '#000');
       fctx.fillRect(0,0,fill.width,fill.height);
     }
 
-    // 5.2 применим альфа-маску (maskURL уже в масштабе сцены)
-    try{
-      const mImg = await loadImage(maskURL);
-      fctx.globalCompositeOperation = 'destination-in'; // оставить только внутри маски
-      fctx.drawImage(mImg, 0, 0, fill.width, fill.height);
-      fctx.globalCompositeOperation = 'source-over';
-    } catch(e){ /* если вдруг маска не загрузилась — просто не обрежем */ }
+    // альфа-маска
+    const mImg = await loadImage(maskURL);
+    fctx.globalCompositeOperation = 'destination-in';
+    fctx.drawImage(mImg, 0, 0, fill.width, fill.height);
+    fctx.globalCompositeOperation = 'source-over';
 
-    // 5.3 поверх базы (строго последним слоем, как overlay в DOM)
-    octx.drawImage(fill, 0, 0);
+    // учитываем смещение overlay (translateY) и непрозрачность
+    const ty = (getTranslateY(overlay) || 0) * SCALE;
+    octx.globalAlpha = parseFloat(getComputedStyle(silhouetteFill).opacity) || 1;
+    octx.drawImage(fill, 0, ty);
+    octx.globalAlpha = 1;
   }
 
-  // 6) Сохранить
-  out.toBlob(saveBlob, 'image/png');
-
-  function saveBlob(blob){
+  // 4) сохранить файл
+  out.toBlob((blob)=>{
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -650,8 +646,11 @@ if (isRounded) {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  }
+  }, 'image/png');
 }
+
+
+
 
 
 // === ФОН: загрузка ===
@@ -676,9 +675,50 @@ document.getElementById('bgClear')?.addEventListener('click', () => {
 
 // === Инверт цвета ===
 document.getElementById('invert')?.addEventListener('click', () => {
+  const toLight = !stage.classList.contains('light'); // что будет после toggle
   stage.classList.toggle('light');
-  resetRoundState();
+
+  if (isRounded) {
+    currentInk = toLight ? '#ffffff' : '#000000';
+    silhouetteFill.style.background = currentInk;
+  } else {
+    currentInk = toLight ? '#ffffff' : '#000000';
+    composition.style.color = currentInk;
+  }
 });
+
+function makeNoiseTexture(tile=64, alpha=28) {
+  const c = document.createElement('canvas');
+  c.width = c.height = tile;
+  const ctx = c.getContext('2d', { willReadFrequently: false });
+
+  const img = ctx.createImageData(tile, tile);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = Math.random() * 255 | 0; // 0..255
+    d[i] = d[i+1] = d[i+2] = v;
+    d[i+3] = alpha; // прозрачность точки
+  }
+  ctx.putImageData(img, 0, 0);
+  return c.toDataURL('image/png');
+}
+
+function applyGrain() {
+  if (!grain) return;                // защита
+  if (noiseIntensity <= 0) {
+    grain.hidden = true;
+    grain.style.backgroundImage = '';
+    return;
+  }
+  if (!noiseURL) noiseURL = makeNoiseTexture(512, 255);
+  grain.style.backgroundImage = `url(${noiseURL})`;
+  grain.style.backgroundSize = `${noiseSizePx}px ${noiseSizePx}px`;
+  grain.style.opacity = noiseIntensity.toFixed(2);
+  grain.hidden = false;
+}
+
+
+
 
 // === Мелкий текст ===
 document.getElementById('micro')?.addEventListener('click', () => {
@@ -791,12 +831,25 @@ let compShiftState = 0;                  // -1 = вниз, 0 = центр, 1 = �
 const SHIFT_FACTOR = 0.35;                // ~ «200px» как доля высоты composition
 
 function applyCompositionShift() {
-  const compH = composition.getBoundingClientRect().height || 0;
+  const baseRect = composition.getBoundingClientRect();
+  const compH = baseRect.height || 0;
   const px = Math.round(compH * SHIFT_FACTOR);
   const offset = compShiftState === 1 ? -px : compShiftState === -1 ? px : 0;
-  composition.style.transform = `translateY(${offset}px)`;
-  resetRoundState();
+
+  const t = `translateY(${offset}px)`;
+  composition.style.transform = t;
+
+  if (isRounded) {
+    overlay.style.transform = t;     // двигаем контейнер
+    silhouetteFill.style.transform = ''; // ребёнка НЕ дублируем
+  }
 }
+
+
+
+
+
+
 
 document.getElementById('moveUp')?.addEventListener('click', () => {
   compShiftState = Math.min(1, compShiftState + 1); // вниз -> центр -> вверх
