@@ -22,11 +22,15 @@ const FONT_POOL = [
 ];
 
 const SANS_POOL = [
-  'Manrope'
+  'Inter'
 ];
 
 // === ШОРТКАТЫ ===
 const stage       = document.getElementById('stage');
+// ===== Размер шрифта по ширине stage =====
+const FS_MIN = 20;   // было 36
+const FS_MAX = 102;  // можно оставить 102
+const FS_K   = 0.12; // 12% от ширины stage
 const overlay     = document.getElementById('overlay');
 const line1       = document.getElementById('line1');
 const line2       = document.getElementById('line2');
@@ -48,6 +52,24 @@ const decors     = document.getElementById('decors');
 
 
 let currentBgUrl = ''; // для revokeObjectURL
+
+
+function updateFontSize() {
+  const w = stage?.getBoundingClientRect().width || 0;
+  const size = Math.min(FS_MAX, Math.max(FS_MIN, w * FS_K));
+  line1.style.fontSize = size + 'px';
+  line2.style.fontSize = size + 'px';
+}
+
+// считать при старте, после генерации и при изменении размеров stage
+const ro = new ResizeObserver(() => {
+  requestAnimationFrame(updateFontSize);
+});
+ro.observe(stage);
+
+
+// если шрифты грузятся — пересчитать после их готовности
+document.fonts?.ready?.then(updateFontSize);
 
 // === УТИЛЫ ===
 const rand    = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -158,6 +180,8 @@ function generate(){
   document.querySelector('.l2').style.letterSpacing = rand(-3, -2) + 'px';
 
   applyCompositionShift(); // учесть текущее положение после перерисовки
+
+  updateFontSize();     // ← вот это
 }
 
 // === СКРУГЛИТЬ / ВЕРНУТЬ ===
@@ -177,7 +201,7 @@ async function roundCorners() {
     work.width = w; work.height = h;
     const ctx  = work.getContext('2d');
 
-    const BLUR_RADIUS = window.innerWidth <= 640 ? 4 : 4;
+    const BLUR_RADIUS = window.innerWidth <= 640 ? 3.5 : 3.5;
     ctx.filter = `blur(${BLUR_RADIUS}px)`;
     ctx.drawImage(canvas, 0, 0);
     ctx.filter = 'none';
