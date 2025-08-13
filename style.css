@@ -54,7 +54,7 @@ body {
 
 /* мелкая типографика */
 .micro{
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.2;
   letter-spacing: .2px;
   text-align:center;
@@ -62,7 +62,7 @@ body {
   opacity:.9;
 }
 /* чуть рандомим размер через data-size (см. JS) */
-.micro[data-size="lg"]{ font-size:18px; }
+.micro[data-size="lg"]{ font-size:16px; }
 .micro[data-size="md"]{ font-size:14px; }
 
 /* мелкий текст — контейнер внутри composition */
@@ -70,14 +70,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 80%;
+    width: 85%;
   flex-wrap: wrap;
 }
 
 
 
 .micro-chip{
-  font-size:15px;                 /* базовый */
+  font-size:14px;                 /* базовый */
   line-height:1.2;
   letter-spacing:.2px;
   font-weight:bold;
@@ -86,7 +86,7 @@ body {
   text-transform: uppercase; 
   -webkit-text-stroke: thin;
 }
-.micro-row[data-size="md"] .micro-chip{ font-size:18px; }
+.micro-row[data-size="md"] .micro-chip{ font-size:16px; }
 .micro-row[data-size="lg"] .micro-chip{ font-size:20px; }
 
 .micro-row { text-transform: lowercase; }
@@ -277,6 +277,40 @@ button#soon-label:hover {
     /* width: 100%; */
 }
 
+/* только в модалке градиента */
+#gradModal input[type="color"]{
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  outline: none;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border-radius: 30px;   /* скругление самого квадрата */
+  overflow: hidden;     /* важно для Safari: обрезает внутренний свотч */
+}
+
+/* WebKit: убираем внутренние отступы и рамку свотча */
+#gradModal input[type="color"]::-webkit-color-swatch-wrapper{
+  padding: 0;
+}
+#gradModal input[type="color"]::-webkit-color-swatch{
+  border: none;
+  border-radius: 30px;   /* чтобы цвет заливал ровно по радиусу */
+}
+
+/* Firefox: свотч и его рамка */
+#gradModal input[type="color"]::-moz-color-swatch{
+  border: none;
+  border-radius: 30px;
+}
+
+/* опционально — свой фокус вместо системного */
+#gradModal input[type="color"]:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.25);
+}
 
 .grain {
   display: none;
@@ -302,11 +336,11 @@ button#soon {
   display: flex; flex-wrap: wrap; justify-content: center;
   gap: -100px;          /* 1в1 как у тебя */
   line-height: .66;
-  letter-spacing: -8px !important;
+  letter-spacing: -6px !important;
   align-items: center;
 }
-.l1 { font-size: clamp(36px, 4.5vw, 102px); margin-bottom: .04em; }
-.l2 { font-size: clamp(36px, 4.5vw, 102px); }
+/*.l1, .l2 { font-size: var(--fs, 48px); } */
+
 
 .ch {
   display:inline-block; white-space: pre; transform-origin: 50% 50%;
@@ -335,9 +369,10 @@ button#soon {
     align-content: center;
     align-items: center;
 transition: transform .18s ease; 
-  max-width: 444px;
+  max-width: 420px;
       margin-left: auto;
     margin-right: auto;
+  overflow: clip;
 }
 
 /* оверлей-результат скругления */
@@ -557,15 +592,20 @@ a {
     position: fixed;
     inset: 0;
     /* background: rgba(0, 0, 0, .35); */
-    display: grid;
+    display: grid
+;
     place-items: center;
     z-index: 9999;
     padding: 16px;
-    align-content: space-between;
-    justify-items: center;
-    justify-content: end;
+    align-content: center;
     width: 100%;
     height: 100%;
+    /* left: -2%; */
+    bottom: 20p;
+    /* top: -1%; */
+    justify-content: start;
+    padding-left: clamp(30px, 1vw, 400px) !important;
+    box-sizing: border-box;
 }
 .modal{
     background: #fff;
@@ -574,8 +614,8 @@ a {
     box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
     display: grid;
     gap: 5px;
-    padding: 16px;
-    scale: 0.8;
+    padding: 22px;
+    /* scale: 0.8; */
     max-width: 450px;
 }
 .modal-head{ display:flex; align-items:center; justify-content:space-between; }
@@ -583,12 +623,13 @@ a {
 .icon-btn{
   border:1px solid #c8c8c8; border-radius:10px; background:#fff; cursor:pointer;
   padding: 6px 10px; line-height:1;
+  display: none;
 }
 .modal-body{
   display:grid; grid-template-columns: 1fr 1fr; gap:10px;
 }
 .modal-body label{
-  font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  font-size:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;
 }
 .modal-body input[type="color"]{ width:32px; height:32px; padding:0; border:0; background:none; }
 .modal-body input[type="range"]{ width:140px; }
