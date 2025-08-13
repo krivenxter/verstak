@@ -139,6 +139,14 @@ function getCustomLines(){
 // ===== Скругление: состояние =====
 let maskURL = ''; // инвертированная маска (белое=видимо, чёрное=прозрачно)
 
+const silhouetteStroke = document.getElementById('silhouetteStroke');
+
+let strokeEnabled = true;
+let strokeColor   = '#21d25a';
+let strokeWidthPx = 14;      // толщина наружу, в пикселях рендера
+let strokeMaskURL = '';      // dataURL для маски-кольца
+
+
 function clearSilhouetteFill(){
   silhouetteFill?.classList.remove('active');
   if (silhouetteFill){
@@ -165,6 +173,13 @@ function resetRoundState({force=false} = {}) {
   overlay.style.backgroundColor = '';
   overlay.classList.remove('threshold-only');
   overlay.style.transform = '';
+  
+  silhouetteStroke.classList.remove('active');
+silhouetteStroke.style.background = '';
+silhouetteStroke.style.webkitMaskImage = '';
+silhouetteStroke.style.maskImage = '';
+strokeMaskURL = '';
+
 
   // ребёнка-слоя чистим
   clearSilhouetteFill();
@@ -221,6 +236,64 @@ undoBtn.hidden = true;
 
 }
 
+async function buildOuterStrokeMask(baseMaskURL, growPx){
+  if (!baseMaskURL || growPx <= 0) return '';
+
+  const img = await loadImage(baseMaskURL);
+  const w = img.width, h = img.height;
+
+  // базовый холст = раздутая маска
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+
+  // 1) положим исходную маску
+  ctx.drawImage(img, 0, 0, w, h);
+
+  // 2) раздуем ее блюром (growPx ≈ радиус)
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.filter = `blur(${growPx}px)`;
+  ctx.drawImage(c, 0, 0);
+  ctx.filter = 'none';
+
+  // 3) превратим в «ч/б с альфой»: всё не-прозрачное → альфа 255
+  const d = ctx.getImageData(0,0,w,h);
+  const a = d.data;
+  for (let i=0;i<a.length;i+=4){
+    const alpha = a[i+3] > 0 ? 255 : 0;
+    a[i]=255; a[i+1]=255; a[i+2]=255; a[i+3]=alpha;
+  }
+  ctx.putImageData(d,0,0);
+
+  // 4) вычтем исходную маску → останется только внешнее кольцо
+  const src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  const sctx = src.getContext('2d');
+  sctx.drawImage(img, 0, 0, w, h);
+
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.drawImage(src, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+
+  return c.toDataURL('image/png');
+}
+
+async function applyStrokeLayer(){
+  if (!isRounded || !maskURL || !strokeEnabled || strokeWidthPx <= 0){
+    silhouetteStroke.classList.remove('active');
+    silhouetteStroke.style.webkitMaskImage = '';
+    silhouetteStroke.style.maskImage = '';
+    return;
+  }
+  // пересчитать маску-кольцо, если нет или менялась толщина
+  strokeMaskURL = await buildOuterStrokeMask(maskURL, strokeWidthPx);
+
+  silhouetteStroke.style.background = strokeColor;
+  silhouetteStroke.style.opacity = 1;
+  silhouetteStroke.style.webkitMaskImage = `url(${strokeMaskURL})`;
+  silhouetteStroke.style.maskImage      = `url(${strokeMaskURL})`;
+  silhouetteStroke.classList.add('active');
+}
 
 
 // === СКРУГЛИТЬ / ВЕРНУТЬ ===
@@ -274,6 +347,8 @@ async function roundCorners() {
   }
   ctx.putImageData(img, 0, 0);
   maskURL = work.toDataURL('image/png');
+  
+  
 
   // включаем слой-заливку по маске
   const ink = currentInk || (stage.classList.contains('light') ? '#ffffff' : '#000000');
@@ -282,6 +357,9 @@ async function roundCorners() {
   silhouetteFill.style.webkitMaskImage = `url(${maskURL})`;
   silhouetteFill.style.maskImage      = `url(${maskURL})`;
   silhouetteFill.classList.add('active');
+  
+  await applyStrokeLayer();  // построим/покажем обводку, если включена
+
 
   overlay.style.background = 'transparent';
   overlay.hidden = false;
@@ -293,6 +371,7 @@ async function roundCorners() {
 // ВАЖНО: НЕ переносим смещение, оно уже "запечено" в маске
 overlay.style.transform = '';
 silhouetteFill.style.transform = '';
+  silhouetteStroke.style.transform = '';
 
 
   isRounded = true;
@@ -333,6 +412,41 @@ colorBtn?.addEventListener('click', openColor);
 colorClose?.addEventListener('click', closeColor);
 colorDone?.addEventListener('click', closeColor);
 colorModal?.addEventListener('click', e=>{ if(e.target===e.currentTarget) closeColor(); });
+const strokeColorInput   = document.getElementById('strokeColor');
+const strokeWidthInput   = document.getElementById('strokeWidth');
+const strokeEnabledInput = document.getElementById('strokeEnabled');
+
+strokeColorInput?.addEventListener('input', async ()=>{
+  strokeColor = strokeColorInput.value;
+  if (isRounded) {
+    await applyStrokeLayer();
+  }
+});
+
+strokeWidthInput?.addEventListener('input', async ()=>{
+  strokeWidthPx = Math.max(0, +strokeWidthInput.value|0);
+  if (isRounded) {
+    await applyStrokeLayer();
+  }
+});
+
+strokeEnabledInput?.addEventListener('change', async ()=>{
+  strokeEnabled = !!strokeEnabledInput.checked;
+  if (isRounded) {
+    await applyStrokeLayer();
+  }
+});
+
+// При открытии модалки синхронизируй текущие значения:
+function openColor(){ 
+  colorModal.hidden = false;
+  colorPick.value      = currentInk;
+  colorAlpha.value     = 100;
+  strokeColorInput.value   = strokeColor;
+  strokeWidthInput.value   = strokeWidthPx;
+  strokeEnabledInput.checked = strokeEnabled;
+}
+
 
 // лайв-превью цвета
 colorPick?.addEventListener('input', ()=>{
@@ -602,6 +716,27 @@ async function downloadPng(){
   // рисуем базу (фон, градиент и т.д.)
   octx.drawImage(baseCanvas, 0, 0);
 
+  // === 3а) если включена обводка — рисуем её первой (под силуэтом)
+if (isRounded && strokeEnabled && strokeMaskURL){
+  const strokeCanvas = document.createElement('canvas');
+  strokeCanvas.width = out.width; strokeCanvas.height = out.height;
+  const sctx = strokeCanvas.getContext('2d');
+
+  // заливаем цветом обводки
+  sctx.fillStyle = strokeColor;
+  sctx.fillRect(0,0,strokeCanvas.width, strokeCanvas.height);
+
+  // применяем альфа-маску-кольцо
+  const ring = await loadImage(strokeMaskURL);
+  sctx.globalCompositeOperation = 'destination-in';
+  sctx.drawImage(ring, 0, 0, strokeCanvas.width, strokeCanvas.height);
+  sctx.globalCompositeOperation = 'source-over';
+
+  // смещение overlay учесть не нужно — маска делалась со «впаянным» положением
+  octx.drawImage(strokeCanvas, 0, 0);
+}
+
+  
   // 3) если «Силуэт» активен — докладываем его по маске
   if (isRounded && silhouetteFill.classList.contains('active') && maskURL){
     const fill = document.createElement('canvas');
@@ -869,4 +1004,3 @@ document.getElementById('download').addEventListener('click', downloadPng);
 
 // первичный рендер
 generate();
- 
