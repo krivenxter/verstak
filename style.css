@@ -114,18 +114,20 @@ body {
 .silhouette-fill{
   position:absolute; inset:0;
   pointer-events:none;
-  /* По умолчанию пусто; включаем, когда выбираем действие */
   display:none;
-  /* Маска подключается из JS: mask-image: url(data:...png) */
+
+  /* было cover/center — из-за этого скейлилось */
   -webkit-mask-repeat:no-repeat;
   mask-repeat:no-repeat;
-  -webkit-mask-size:cover;
-  mask-size:cover;
-  -webkit-mask-position:center;
-  mask-position:center;
-   mask-mode: alpha;           /* стандарт */
-  -webkit-mask-composite: source-over; /* по умолчанию; на поведение не влияет */
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+
+  mask-mode: alpha;
 }
+
+
 .silhouette-fill.active{ display:block; }
 
 /* Чтобы threshold фон не мешал заливке (когда надо) */
@@ -277,8 +279,12 @@ button#soon-label:hover {
     /* width: 100%; */
 }
 
+.stage.exporting { border: 0 !important; border-radius: 0 !important; }
+.stage.exporting .overlay { border-radius: 0 !important; }
+
+
 /* только в модалке градиента */
-#gradModal input[type="color"]{
+input[type="color"]{
   appearance: none;
   -webkit-appearance: none;
   border: 0;
@@ -291,32 +297,44 @@ button#soon-label:hover {
   overflow: hidden;     /* важно для Safari: обрезает внутренний свотч */
 }
 
+#stage.masking {
+  filter: grayscale(1) contrast(2000%) brightness(0%);
+}
+
 /* WebKit: убираем внутренние отступы и рамку свотча */
-#gradModal input[type="color"]::-webkit-color-swatch-wrapper{
+input[type="color"]::-webkit-color-swatch-wrapper{
   padding: 0;
 }
-#gradModal input[type="color"]::-webkit-color-swatch{
+input[type="color"]::-webkit-color-swatch{
   border: none;
   border-radius: 30px;   /* чтобы цвет заливал ровно по радиусу */
 }
 
 /* Firefox: свотч и его рамка */
-#gradModal input[type="color"]::-moz-color-swatch{
+input[type="color"]::-moz-color-swatch{
   border: none;
   border-radius: 30px;
 }
 
 /* опционально — свой фокус вместо системного */
-#gradModal input[type="color"]:focus-visible{
+input[type="color"]:focus-visible{
   outline: none;
   box-shadow: 0 0 0 2px rgba(0,0,0,.25);
 }
 
 .grain {
-  display: none;
-  position:absolute; inset:0; pointer-events:none; opacity:.08; mix-blend-mode:multiply;
-  background-image: radial-gradient(#000 1px, transparent 1px); background-size: 3px 3px;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Никаких display:none; просто прячем через [hidden] */
+  opacity: .08;
+  mix-blend-mode: multiply; /* можно заменить на overlay/soft-light по вкусу */
+  background-size: 20px 20px; /* будет переопределяться из JS */
+  background-repeat: repeat;
+  z-index: 0; /* должен быть над #bgLayer, но под .composition */
 }
+.grain[hidden] { display: none !important; }
+
 
 button#soon {
     display: flex;
@@ -369,7 +387,7 @@ button#soon {
     align-content: center;
     align-items: center;
 transition: transform .18s ease; 
-  max-width: 420px;
+  max-width: 440px;
       margin-left: auto;
     margin-right: auto;
   overflow: clip;
@@ -451,7 +469,7 @@ h1 {
 .who-3 {
      padding: 0px;
     margin: 0px;
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 0.2px;
     font-variant: all-petite-caps;
     font-weight: 400;
