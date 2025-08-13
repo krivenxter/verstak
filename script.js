@@ -869,3 +869,4 @@ document.getElementById('download').addEventListener('click', downloadPng);
 
 // первичный рендер
 generate();
+ 
