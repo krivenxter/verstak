@@ -165,6 +165,31 @@ body {
   width: var(--cross-thickness, 2px);
 }
 
+/* Слой обводки силуэта */
+.silhouette-stroke{
+  position:absolute; inset:0; pointer-events:none; display:none;
+  background: transparent;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: 0 0;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  mask-position: 0 0;
+  mask-size: 100% 100%;
+}
+.silhouette-stroke.active{ display:block; }
+
+/* уже есть .silhouette-fill — оставляем как есть */
+
+/* Лайв-обводка для «живой» композиции (до силуэта) */
+.composition.with-stroke .ch{
+  /* внешний штрих, цвет задаём переменной */
+  -webkit-text-stroke-width: var(--stroke-w, 8px);
+  -webkit-text-stroke-color: var(--stroke-color, #00ff88);
+  paint-order: stroke fill;
+}
+
+/* чтобы движение силуэта было таким же плавным */
+.overlay{ transition: transform .18s ease; }
 
 
 .controls {
