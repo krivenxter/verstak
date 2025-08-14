@@ -1,7 +1,20 @@
 <!-- HTML -->
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
+  <!-- прячем тело до применения i18n -->
+<style>
+  html:not(.i18n-ready) body { visibility: hidden; }
+</style>
+  <!-- ранняя инициализация языка прямо в <head> -->
+<script>
+  (function() {
+    var saved = localStorage.getItem('lang') || 'en';     // дефолт — EN
+    document.documentElement.setAttribute('lang', saved); // <html lang="en">
+    // Можно сразу пометить активную кнопку, если хочешь:
+    // (сработает после появления DOM, но не мешает)
+  })();
+</script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>VERSTAK — Генератор типографических композиций</title>
@@ -79,7 +92,10 @@
       <footer>
  
             <div class="who-1"><a href="https://t.me/okrivenko">По вопросам сюда</a></div> 
-            <div class="who-3">Обновлено 14 Авг. 25'</div>
+             <div class="lang-switch" role="group" aria-label="Language">
+                 <button class="lang-btn" data-lang="en">EN</button>
+  <button class="lang-btn" data-lang="ru">RU</button>
+
     
   
   </footer>
@@ -111,8 +127,10 @@
     </div>
     
     <div class="mob-podval">
-   <div class="who"><a href="https://t.me/okrivenko">Вопросы сюда</a></div> 
-            <div class="who">Обновлено 11 Авг. 25'</div>
+   <div class="who"><a href="https://t.me/okrivenko">По вопросам сюда</a></div> 
+           
+</div>
+
       </div>
     
     
