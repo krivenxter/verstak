@@ -74,6 +74,11 @@ body {
   flex-wrap: wrap;
 }
 
+.lang-switch{display:flex;gap:6px;margin:0px}
+.lang-btn{background:#fff;color:#111;border:1px solid #c8c8c8;border-radius:999px;    padding: 6px 8px 8px;line-height:1}
+.lang-btn.active{background: #b7b7b7;
+    color: #fff;
+    border-color: #b7b7b7;}
 
 
 .micro-chip{
@@ -324,7 +329,8 @@ button#soon-label:hover {
     position: relative;
     overflow: hidden;
     border: 1px solid #c8c8c8;         /* <— ключевое */
-  max-width: 500px;      /* ты можешь поменять это на то, что хочешь на десктопе */
+ width: auto;           /* <— ключевое */
+  max-width: 552px;      /* ты можешь поменять это на то, что хочешь на десктопе */
    contain: layout paint size;  /* изолирует от «выпирающего» контента */
 }
 
@@ -458,11 +464,12 @@ transition: transform .18s ease;
 /*.overlay img { width: 100%; height: 100%; object-fit: cover; border-radius: 18px; } */
 
 footer {
-    margin-top: 18px;
+    margin-top: 15px;
     opacity: .7;
     font-size: 12px;
     text-align: center;
-    display: flex;
+    display: flex
+;
     justify-content: space-between;
     align-items: center;
 }
@@ -594,6 +601,11 @@ a {
 
 @media (max-width: 768px) {
   
+  
+footer {
+    margin-bottom: 15px;
+}
+  
   .header {
     margin-bottom: 15px;
 }
@@ -604,24 +616,15 @@ a {
 }
   
  .composition { max-width: 100%; }   /* вместо 1200px */
-  .stage      { max-width: 100%; }    /* сцена не шире экрана */
+  .stage      { max-width: 100%;
+  width: 100% !important;}  
+  /* сцена не шире экрана */
     .line {
   letter-spacing: -5px !important;
+
 }
  
-  .mob-podval {
-    margin-bottom: 10px;
-    margin-top: 10px;
-    display: flex
-;
-    align-content: flex-start;
-    align-items: flex-start;
-    justify-content: space-between;
-  }   
-  
-  footer {
-    display: none;
-  }
+ 
   
   .app {
     flex-direction: column;
