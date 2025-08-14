@@ -110,26 +110,6 @@ body {
 
 .action-popover[hidden]{ display:none !important; }
 
-/* Контейнер заливки силуэта поверх threshold */
-.silhouette-fill{
-  position:absolute; inset:0;
-  pointer-events:none;
-  display:none;
-
-  /* было cover/center — из-за этого скейлилось */
-  -webkit-mask-repeat:no-repeat;
-  mask-repeat:no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-position: 0 0;
-  mask-position: 0 0;
-
-  mask-mode: alpha;
-}
-
-
-.silhouette-fill.active{ display:block; }
-
 /* Чтобы threshold фон не мешал заливке (когда надо) */
 .overlay.threshold-only{
   background-size: cover;
@@ -165,28 +145,55 @@ body {
   width: var(--cross-thickness, 2px);
 }
 
-/* Слой обводки силуэта */
+/* Слой обводки силуэта — единая версия без конфликтов */
 .silhouette-stroke{
-position: absolute;
+  position: absolute;
   inset: 0;
+  display: none;              /* по умолчанию скрыт */
   pointer-events: none;
-
-  /* ключевые хаки для Safari iOS */
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  -webkit-mask-size: contain;
-
-  mask-repeat: no-repeat;
-  mask-position: center;
-  mask-size: contain;
-
+  background: transparent !important;
+  z-index: 2;                 /* выше заливки */
   will-change: transform, opacity;
-  contain: layout paint style;
-  isolation: isolate;
+  contain: layout paint;
   backface-visibility: hidden;
   transform: translateZ(0);
 }
+
+.silhouette-stroke > img{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;    /* 1:1 с канвасом, без искажений масштаба */
+  display: block;
+  pointer-events: none;
+}
+
 .silhouette-stroke.active{ display:block; }
+
+/* Слой заливки силуэта — тоже единая версия */
+.silhouette-fill{
+  position: absolute;
+  inset: 0;
+  display: none;              /* по умолчанию скрыт */
+  pointer-events: none;
+
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-position: 0 0;
+
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  mask-position: 0 0;
+  mask-mode: alpha;
+
+  z-index: 1;                 /* под обводкой */
+  will-change: transform, opacity;
+  contain: layout paint;
+  backface-visibility: hidden;
+}
+.silhouette-fill.active{ display:block; }
+
 
 /* уже есть .silhouette-fill — оставляем как есть */
 
@@ -316,9 +323,8 @@ button#soon-label:hover {
     /* padding-bottom: 10px; */
     position: relative;
     overflow: hidden;
-    border: 1px solid #c8c8c8;
-width: 100%;           /* <— ключевое */
-  max-width: 422px;      /* ты можешь поменять это на то, что хочешь на десктопе */
+    border: 1px solid #c8c8c8;         /* <— ключевое */
+  max-width: 500px;      /* ты можешь поменять это на то, что хочешь на десктопе */
    contain: layout paint size;  /* изолирует от «выпирающего» контента */
 }
 
@@ -384,23 +390,6 @@ button#soon {
     gap: 5px;
 }
 
-/* Помогает WebKit корректно композить слои с масками */
-.silhouette-stroke, .silhouette-fill {
-  will-change: transform, opacity;
-  contain: layout paint;        /* изоляция, меньше шансов на артефакты */
-  backface-visibility: hidden;  /* GPU-хинт для iOS */
-}
-
-
-.silhouette-stroke{
-  position:absolute; inset:0; display:none; pointer-events:none;
-  /* такая же маска-схема как у fill */
-  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
-  -webkit-mask-size:100% 100%; mask-size:100% 100%;
-  -webkit-mask-position:0 0;    mask-position:0 0;
-  mask-mode:alpha;
-}
-.silhouette-stroke.active{ display:block; }
 
 
 .caps-text {
@@ -568,9 +557,9 @@ textarea#custom {
     padding: 9px 14px 4px 16px;
     border: 1px solid #c8c8c8;
     line-height: 1;
-    min-width: 80px !important;
-    max-width: 200px !important;
-    font-size: 12px;
+    /* min-width: 80px !important; */
+    max-width: 120px !important;
+    /* font-size: 12px; */
     /* height: 40px; */
     max-height: 40px;
     overflow: clip;
