@@ -167,14 +167,24 @@ body {
 
 /* Слой обводки силуэта */
 .silhouette-stroke{
-  position:absolute; inset:0; pointer-events:none; display:none;
-  background: transparent;
+position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  /* ключевые хаки для Safari iOS */
   -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: 0 0;
-  -webkit-mask-size: 100% 100%;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+
   mask-repeat: no-repeat;
-  mask-position: 0 0;
-  mask-size: 100% 100%;
+  mask-position: center;
+  mask-size: contain;
+
+  will-change: transform, opacity;
+  contain: layout paint style;
+  isolation: isolate;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 .silhouette-stroke.active{ display:block; }
 
@@ -307,8 +317,9 @@ button#soon-label:hover {
     position: relative;
     overflow: hidden;
     border: 1px solid #c8c8c8;
-    /* flex: 1; */
-    /* width: 100%; */
+width: 100%;           /* <— ключевое */
+  max-width: 422px;      /* ты можешь поменять это на то, что хочешь на десктопе */
+   contain: layout paint size;  /* изолирует от «выпирающего» контента */
 }
 
 .stage.exporting { border: 0 !important; border-radius: 0 !important; }
@@ -372,6 +383,14 @@ button#soon {
     display: flex;
     gap: 5px;
 }
+
+/* Помогает WebKit корректно композить слои с масками */
+.silhouette-stroke, .silhouette-fill {
+  will-change: transform, opacity;
+  contain: layout paint;        /* изоляция, меньше шансов на артефакты */
+  backface-visibility: hidden;  /* GPU-хинт для iOS */
+}
+
 
 .silhouette-stroke{
   position:absolute; inset:0; display:none; pointer-events:none;
@@ -595,9 +614,8 @@ a {
 
 }
   
-  .composition {
-  max-width: 1200px;
-}
+ .composition { max-width: 100%; }   /* вместо 1200px */
+  .stage      { max-width: 100%; }    /* сцена не шире экрана */
     .line {
   letter-spacing: -5px !important;
 }
