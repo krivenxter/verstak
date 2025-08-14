@@ -285,38 +285,59 @@ function applyLiveStroke(){
 // === ПОСТРОЕНИЕ КОЛЬЦЕВОЙ МАСКИ (для обводки вокруг силуэта) ===
 async function buildOuterStrokeMask(baseMaskURL, growPx){
   if (!baseMaskURL || growPx <= 0) return '';
-  const img = await loadImage(baseMaskURL);
-  const w = img.width, h = img.height;
+  const srcImg = await loadImage(baseMaskURL);
+  const w = srcImg.width, h = srcImg.height;
 
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const c   = document.createElement('canvas'); c.width = w; c.height = h;
   const ctx = c.getContext('2d');
 
-  // исходник
-  ctx.drawImage(img, 0, 0, w, h);
+  // 1) раскладываем исходную маску (бинарная альфа)
+  const src = document.createElement('canvas'); src.width = w; src.height = h;
+  const sctx = src.getContext('2d');
+  sctx.drawImage(srcImg, 0, 0, w, h);
 
-  // расширяем блюром
-  ctx.filter = `blur(${growPx}px)`;
-  ctx.drawImage(c, 0, 0);
-  ctx.filter = 'none';
+  // 2) "дилатация" без blur: многократные смещения
+  // шаг берём помельче, чтобы край был ровный
+  const r = Math.max(1, Math.round(growPx * 1)); // чуть толще и мягче
 
-  // бинаризуем альфу
-  const d = ctx.getImageData(0,0,w,h); const a = d.data;
+  const step = Math.max(1, Math.round(r / 3)); // чем больше r, тем больше смещений
+  ctx.clearRect(0,0,w,h);
+
+  // центр
+  ctx.drawImage(src, 0, 0);
+
+  // 8 направлений + диагонали
+  for (let dy = -r; dy <= r; dy += step){
+    for (let dx = -r; dx <= r; dx += step){
+      if (dx === 0 && dy === 0) continue;
+      ctx.drawImage(src, dx, dy);
+    }
+  }
+
+  // 3) бинаризуем (альфу -> 0/255)
+  const imgData = ctx.getImageData(0,0,w,h);
+  const a = imgData.data;
   for (let i=0;i<a.length;i+=4){
     const alpha = a[i+3] > 0 ? 255 : 0;
     a[i]=255; a[i+1]=255; a[i+2]=255; a[i+3]=alpha;
   }
-  ctx.putImageData(d,0,0);
+  ctx.putImageData(imgData,0,0);
 
-  // вычесть исходник → остаётся кольцо
-  const src = document.createElement('canvas'); src.width=w; src.height=h;
-  src.getContext('2d').drawImage(img, 0, 0, w, h);
-
+  // 4) вычитаем исходник -> получаем кольцо
   ctx.globalCompositeOperation = 'destination-out';
   ctx.drawImage(src, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
 
   return c.toDataURL('image/png');
 }
+
+
+document.querySelector('label[for="strokeEnabled"]')?.addEventListener('click', e=>{
+  e.preventDefault();
+  strokeEnabledInput.checked = !strokeEnabledInput.checked;
+  strokeEnabledInput.dispatchEvent(new Event('change',{bubbles:true}));
+});
+
 
 function forceRepaint(el){
   // хак для iOS Safari: короткий translateZ и чтение offsetHeight
@@ -332,59 +353,59 @@ function forceRepaint(el){
 async function applySilhouetteStroke(){
   if (!silhouetteStroke) return;
 
+  // выключение
   if (!isRounded || !maskURL || !strokeOnSil || strokeWidthPx <= 0){
     silhouetteStroke.classList.remove('active');
+    // чистим DOM: никаких фонов/масок, и удаляем <img>
+    silhouetteStroke.style.backgroundImage = '';
     silhouetteStroke.style.webkitMaskImage = '';
     silhouetteStroke.style.maskImage = '';
-    return;
-  }
-  
-  function forceRepaint(el) {
-  if (!el) return;
-  // меняем свойство и возвращаем назад, чтобы Safari перерисовал
-  el.style.transform += ' rotate(0.0001deg)';
-  void el.offsetHeight; // триггер layout
-  el.style.transform = el.style.transform.replace(' rotate(0.0001deg)', '');
-}
-
-async function applySilhouetteStroke(){
-  if (!silhouetteStroke) return;
-
-  if (!isRounded || !maskURL || !strokeOnSil || strokeWidthPx <= 0){
-    silhouetteStroke.classList.remove('active');
-    silhouetteStroke.style.webkitMaskImage = '';
-    silhouetteStroke.style.maskImage = '';
+    while (silhouetteStroke.firstChild) silhouetteStroke.removeChild(silhouetteStroke.firstChild);
     return;
   }
 
-  strokeMaskURL = await buildOuterStrokeMask(maskURL, strokeWidthPx);
+  // 1) строим цветное кольцо (PNG dataURL)
+  const coloredRingURL = await buildColoredRing(maskURL, Math.max(1, strokeWidthPx), strokeColor);
+  if (!coloredRingURL){
+    silhouetteStroke.classList.remove('active');
+    while (silhouetteStroke.firstChild) silhouetteStroke.removeChild(silhouetteStroke.firstChild);
+    return;
+  }
 
-  const url = `url(${strokeMaskURL})`;
-  silhouetteStroke.style.background = strokeColor;
-  silhouetteStroke.style.opacity = 1;
-  silhouetteStroke.style.webkitMaskImage = url;
-  silhouetteStroke.style.maskImage      = url;
+  // 2) **никаких mask/background-image** — только <img>
+  silhouetteStroke.style.webkitMaskImage = '';
+  silhouetteStroke.style.maskImage = '';
+  silhouetteStroke.style.backgroundImage = 'none';
+  silhouetteStroke.style.background = 'transparent';
+
+  // создаём/переиспользуем <img>
+  let imgEl = silhouetteStroke.querySelector('img');
+  if (!imgEl){
+    imgEl = document.createElement('img');
+    imgEl.alt = '';
+    imgEl.decoding = 'async';
+    imgEl.loading = 'eager';
+    silhouetteStroke.appendChild(imgEl);
+  }
+
+  // cache-buster для iOS, чтоб не показывал старый dataURL из кеша
+  imgEl.src = coloredRingURL + '#' + Date.now();
+
   silhouetteStroke.classList.add('active');
-  silhouetteStroke.style.transform = ''; 
+  silhouetteStroke.style.outline = '1px dashed #f0f';
+silhouetteStroke.style.background = 'transparent';
 
-  forceRepaint(silhouetteStroke); // ← пинок Safari
+
+  // лёгкий «пинок» WebKit
+  silhouetteStroke.style.transform += ' translateZ(0)';
+  void silhouetteStroke.offsetHeight;
+  silhouetteStroke.style.transform = silhouetteStroke.style.transform.replace(' translateZ(0)', '');
 }
 
 
-  strokeMaskURL = await buildOuterStrokeMask(maskURL, strokeWidthPx);
 
-  silhouetteStroke.style.background = strokeColor;
-  silhouetteStroke.style.opacity = 1;
 
-  const url = `url(${strokeMaskURL})`;
-  silhouetteStroke.style.webkitMaskImage = url;  // префикс
-  silhouetteStroke.style.maskImage      = url;   // без префикса
-  silhouetteStroke.classList.add('active');
-  silhouetteStroke.style.transform = ''; // двигается как overlay
 
-  // iOS Safari repaint kick
-  forceRepaint(silhouetteStroke);
-}
 
 
 // === ШУМ ДЛЯ ГРАДИЕНТА ===
@@ -723,8 +744,40 @@ function getTranslateY(el){
   return t ? parseFloat(t[1]) : 0;
 }
 
-// хелпер остаётся твой:
-// function getTranslateY(el){ ... }
+
+function kickSafariRepaint(el){
+  if (!el) return;
+  el.style.transform += ' rotate(0.0001deg)';
+  void el.offsetHeight;
+  el.style.transform = el.style.transform.replace(' rotate(0.0001deg)', '');
+}
+
+async function buildColoredRing(baseMaskURL, growPx, color){
+  // 1) получаем альфа-кольцо (как у тебя, или через ф-ю ниже)
+  const ringMaskURL = await buildOuterStrokeMask(baseMaskURL, Math.max(1, growPx));
+  if (!ringMaskURL) return '';
+
+  // 2) красим кольцо в color → получаем готовую RGBA-картинку
+  const maskImg = await loadImage(ringMaskURL);
+  const w = maskImg.width, h = maskImg.height;
+
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+
+  // фон — наш цвет
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = color;
+  ctx.fillRect(0,0,w,h);
+
+  // вырезаем цвет по альфе кольца
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(maskImg, 0, 0, w, h);
+  ctx.globalCompositeOperation = 'source-over';
+
+  return c.toDataURL('image/png');
+}
+
+
 
 async function downloadPng(){
   const SCALE = window.devicePixelRatio || 2;
@@ -769,36 +822,23 @@ async function downloadPng(){
   const ty = (getTranslateY(overlay) || 0) * SCALE;
 
   // 3) ОБВОДКА вокруг силуэта (если включена)
-  if (isRounded && strokeOnSil && maskURL){
-    // есть ли готовая маска-ободок? если нет — построим на лету
-    let ringURL = (silhouetteStroke && (getComputedStyle(silhouetteStroke).webkitMaskImage || getComputedStyle(silhouetteStroke).maskImage) || '').toString();
-    if (ringURL.startsWith('url(')) {
-      ringURL = ringURL.slice(4,-1).replaceAll('"','').replaceAll("'","");
-    } else {
-      // запасной вариант: пересчёт
-      const tmp = await buildOuterStrokeMask(maskURL, Math.max(1, strokeWidthPx));
-      ringURL = tmp;
-    }
+ // 3) ОБВОДКА вокруг силуэта (если включена)
+if (isRounded && strokeOnSil && maskURL){
+  // пытаемся взять готовую картинку кольца из <img>
+  let ringURL = silhouetteStroke?.querySelector('img')?.src || '';
 
-    if (ringURL){
-      const ring = await loadImage(ringURL);
-      const sCanvas = document.createElement('canvas');
-      sCanvas.width = out.width; sCanvas.height = out.height;
-      const sctx = sCanvas.getContext('2d');
-
-      // цвет обводки
-      sctx.fillStyle = strokeColor;
-      sctx.fillRect(0,0,sCanvas.width,sCanvas.height);
-
-      // вырезаем по кольцевой маске
-      sctx.globalCompositeOperation = 'destination-in';
-      sctx.drawImage(ring, 0, 0, sCanvas.width, sCanvas.height);
-      sctx.globalCompositeOperation = 'source-over';
-
-      // учитываем сдвиг вверх/вниз
-      octx.drawImage(sCanvas, 0, ty);
-    }
+  // если по какой-то причине её нет — пересчитываем
+  if (!ringURL || ringURL.startsWith('data:') === false){
+    ringURL = await buildColoredRing(maskURL, Math.max(1, strokeWidthPx), strokeColor);
   }
+
+  if (ringURL){
+    const ringImg = await loadImage(ringURL);
+    // рисуем как есть (это уже цветная PNG с альфой)
+    octx.drawImage(ringImg, 0, ty, out.width, out.height);
+  }
+}
+
 
   // 4) ЗАЛИВКА силуэта (если активна)
   if (isRounded && silhouetteFill.classList.contains('active') && maskURL){
@@ -1049,38 +1089,29 @@ strokeWidthInput?.addEventListener('input', async ()=>{
 });
 strokeEnabledInput?.addEventListener('change', async ()=>{
   strokeEnabled = !!strokeEnabledInput.checked;
-  // если хочешь привязать к круговой обводке — синхронизируй с кнопкой:
   if (isRounded){
     strokeOnSil = strokeEnabled;
     await applySilhouetteStroke();
   }
 });
 
+
 // одна кнопка «Обводка» — и до, и после силуэта
 strokeToggle?.addEventListener('click', async ()=>{
-  if (!isRounded) {
-    // живая обводка до силуэта
+  if (!isRounded){
+    // Живая обводка до силуэта
     liveStrokeOn = !liveStrokeOn;
     applyLiveStroke();
   } else {
-    // обводка по силуэту
+    // Обводка вокруг силуэта
     strokeOnSil = !strokeOnSil;
-    if (strokeOnSil && maskURL) {
-      strokeMaskURL = await buildOuterStrokeMask(maskURL, strokeWidthPx);
-      const url = `url(${strokeMaskURL})`;
-      silhouetteStroke.style.background = strokeColor;
-      silhouetteStroke.style.opacity = 1;
-      silhouetteStroke.style.webkitMaskImage = url;
-      silhouetteStroke.style.maskImage = url;
-      silhouetteStroke.classList.add('active');
-      forceRepaint(silhouetteStroke); // пинок
-    } else {
-      silhouetteStroke.classList.remove('active');
-      silhouetteStroke.style.webkitMaskImage = '';
-      silhouetteStroke.style.maskImage = '';
-    }
+    // гарантируем, что overlay виден
+    overlay.hidden = false;
+    // форсим пересчёт кольца каждый раз (можно кэшировать при желании)
+    await applySilhouetteStroke();
   }
 });
+
 
 
 // первичный рендер
