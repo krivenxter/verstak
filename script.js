@@ -112,6 +112,244 @@ const shuffle = (arr) => arr.map(v=>[Math.random(), v]).sort((a,b)=>a[0]-b[0]).m
 const pickFonts = () => shuffle([...FONT_POOL]).slice(0, rand(3,6));
 const clamp  = (v,min,max)=>Math.max(min,Math.min(max,v));
 
+
+// ---- i18n ----
+let currentLang = localStorage.getItem('lang') || 'en';
+
+// Тексты
+const I18N = {
+  ru: {
+    title: 'Генератор типографических композиций',
+    generate: 'Сгенерить',
+    placeholder: 'Ваш Текст',
+    up: '▲',
+    down: '▼',
+    gradient: 'Градиент',
+    invert: 'Белый / чёрный',
+    micro: 'Мелкий текст',
+    bubbles: 'Пузыри',
+    crosses: 'Кресты',
+    bg_on: 'Фон ✓',
+    bg_off: 'Фон ×',
+    color: 'Цвет',
+    stroke: 'Обводка',
+    silhouette: 'Силуэт',
+    undo: 'Вернуть',
+    download: 'Скачать',
+    grad_title: 'Градиент фона',
+    grad_c1: 'Цвет 1',
+    grad_c2: 'Цвет 2',
+    grad_c3: 'Цвет 3',
+    grad_angle: 'Угол (°)',
+    grad_bias1: 'Смещение между Цвет 1 и Цвет 2 (%)',
+    grad_bias2: 'Смещение между Цвет 2 и Цвет 3 (%)',
+    grad_noise: 'Шум (интенсивность %)',
+    grad_noise_size: 'Размер зерна (px)',
+    grad_random: '🎲 Зарандомить',
+    grad_clear: 'Убрать градиент',
+    done: 'Готово',
+    color_title: 'Цвет композиции',
+    color_fill: 'Цвет',
+    color_alpha: 'Непрозрачность силуэта (%)',
+    stroke_color: 'Цвет обводки',
+    stroke_width: 'Толщина обводки (px)',
+    stroke_enabled: 'Обводка включена',
+    credit_label: 'Навайбкодил: ',
+     credit_name: 'Олег Кривенко',
+    questions: 'По вопросам сюда',
+    micro_prompt_title: 'Мелкий текст (слова через пробел):',
+micro_prompt_default: 'шёпот под буквами',
+
+  },
+  en: {
+    title: 'Typo Composition Generator',
+    generate: 'Generate',
+    placeholder: 'Your Text',
+    up: '▲',
+    down: '▼',
+    gradient: 'Gradient',
+    invert: 'White / Black',
+    micro: 'Small text',
+    bubbles: 'Bubbles',
+    crosses: 'Crosses',
+    bg_on: 'BG ✓',
+    bg_off: 'BG ×',
+    color: 'Color',
+    stroke: 'Stroke',
+    silhouette: 'Silhouette',
+    undo: 'Undo',
+    download: 'Download',
+    grad_title: 'Background Gradient',
+    grad_c1: 'Color 1',
+    grad_c2: 'Color 2',
+    grad_c3: 'Color 3',
+    grad_angle: 'Angle (°)',
+    grad_bias1: 'Offset between Color 1 & 2 (%)',
+    grad_bias2: 'Offset between Color 2 & 3 (%)',
+    grad_noise: 'Noise (intensity %)',
+    grad_noise_size: 'Grain size (px)',
+    grad_random: '🎲 Randomize',
+    grad_clear: 'Remove gradient',
+    done: 'Done',
+    color_title: 'Composition Color',
+    color_fill: 'Fill',
+    color_alpha: 'Silhouette opacity (%)',
+    stroke_color: 'Stroke color',
+    stroke_width: 'Stroke width (px)',
+    stroke_enabled: 'Stroke enabled',
+    credit_label: 'Vibecoded by',
+    credit_name: 'Oleg Krivenko',
+    questions: 'Contact & Troubleshooting',
+    micro_prompt_title: 'Small text (space-separated words):',
+micro_prompt_default: 'whisper under letters',
+  }
+};
+
+// Какие элементы перетекстовывать (селектор → ключ)
+const I18N_MAP = [
+  ['.header h1','title'],
+  ['#btn','generate'],
+  ['#custom::placeholder','placeholder'],
+  ['#moveUp','up'],
+  ['#moveDown','down'],
+  ['#gradToggle','gradient'],
+  ['#invert','invert'],
+  ['#micro','micro'],
+  ['#cringe','bubbles'],
+  ['#crosses','crosses'],
+  ['#bgBtn','bg_on'],
+  ['#bgClear','bg_off'],
+  ['#colorToggle','color'],
+  ['#strokeToggle','stroke'],
+  ['#round','silhouette'],
+  ['#undoAll','undo'],
+  ['#download','download'],
+['.who-3','credit_label'],  // лейбл слева от ссылки
+['a','credit_name'],
+  ['.who-1 a','questions'],
+
+  // Модалка градиента
+  ['#gradTitle','grad_title'],
+  ['label[for="gradA"]','grad_c1'],
+  ['label[for="gradB"]','grad_c2'],
+  ['label[for="gradC"]','grad_c3'],
+  ['label[for="gradAngle"]','grad_angle'],
+  ['label[for="gradBias1"]','grad_bias1'],
+  ['label[for="gradBias2"]','grad_bias2'],
+  ['label[for="gradNoise"]','grad_noise'],
+  ['label[for="gradNoiseSize"]','grad_noise_size'],
+  ['#gradRandom','grad_random'],
+  ['#gradClear','grad_clear'],
+  ['#gradDone','done'],
+
+  // Модалка цвета/обводки
+  ['#colorTitle','color_title'],
+  ['label[for="colorPick"]','color_fill'],
+  ['label[for="colorAlpha"]','color_alpha'],
+  ['label[for="strokeColor"]','stroke_color'],
+  ['label[for="strokeWidth"]','stroke_width'],
+  ['label[for="strokeEnabled"]','stroke_enabled'],
+];
+
+// Проставление плейсхолдера через атрибут
+function setPlaceholder(el, text){
+  if (el) el.setAttribute('placeholder', text);
+}
+
+// --- Маппинг "input id" -> ключ словаря ---
+const I18N_LABELS_BY_INPUT = {
+  // Градиент
+  gradA: 'grad_c1',
+  gradB: 'grad_c2',
+  gradC: 'grad_c3',
+  gradAngle: 'grad_angle',
+  gradBias1: 'grad_bias1',
+  gradBias2: 'grad_bias2',
+  gradNoise: 'grad_noise',
+  gradNoiseSize: 'grad_noise_size',
+
+  // Модалка цвета/обводки
+  colorPick: 'color_fill',
+  colorAlpha: 'color_alpha',
+  strokeColor: 'stroke_color',
+  strokeWidth: 'stroke_width',
+  strokeEnabled: 'stroke_enabled',
+};
+
+// аккуратно меняем текстовый узел у <label>, который оборачивает input
+function setWrappingLabelText(inputId, text){
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const label = input.closest('label');
+  if (!label) return;
+
+  // ищем первый текстовый узел и заменяем его
+  for (const node of label.childNodes){
+    if (node.nodeType === Node.TEXT_NODE){
+      node.nodeValue = text + ' ';
+      return;
+    }
+  }
+  // если текста не нашли — просто prepend
+  label.prepend(document.createTextNode(text + ' '));
+}
+
+
+function applyLang(lang){
+  currentLang = lang;
+  localStorage.setItem('lang', lang);
+  const t = I18N[lang];
+
+  I18N_MAP.forEach(([sel, key])=>{
+    if (sel.endsWith('::placeholder')){
+      const realSel = sel.replace('::placeholder','');
+      setPlaceholder(document.querySelector(realSel), t[key]);
+    } else {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      // Кнопки с иконками могут иметь вложенные SVG — безопаснее менять textContent,
+      // но если внутри иконка, берем первый текстовый узел:
+      if (el.childElementCount === 0) {
+        el.textContent = t[key];
+      } else {
+        // если есть иконки/спаны: меняем только первый текстовый узел
+        let changed = false;
+        for (const node of el.childNodes){
+          if (node.nodeType === Node.TEXT_NODE){
+            node.nodeValue = ' ' + t[key] + ' ';
+            changed = true;
+            break;
+          }
+        }
+        if (!changed) el.prepend(document.createTextNode(t[key] + ' '));
+      }
+    }
+  });
+  
+  // Проставляем тексты для <label>, которые оборачивают inputs
+for (const [inputId, key] of Object.entries(I18N_LABELS_BY_INPUT)){
+  setWrappingLabelText(inputId, t[key]);
+}
+
+
+  // Подсветка активной кнопки языка
+ document.querySelectorAll('.lang-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
++ // чтобы <html lang="..."> всегда соответствовал выбранному языку
++ document.documentElement.setAttribute('lang', lang);
+  document.documentElement.classList.add('i18n-ready');
+}
+
+// Обработчики
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.lang-btn');
+  if (!btn) return;
+  applyLang(btn.dataset.lang);
+});
+
+applyLang(currentLang);
+
 function mixedCase(word){
   return Array.from(word).map(ch =>
     /[A-Za-zА-Яа-яЁё]/.test(ch) ? (Math.random() < 0.3 ? ch.toUpperCase() : ch.toLowerCase()) : ch
@@ -245,9 +483,31 @@ function generate(){
   resetRoundState({force:true});
   removeMicro();
   stage?.querySelectorAll('.ch.outlined').forEach(n => n.classList.remove('outlined'));
+  
+  const PHRASES_RU = [
+  ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
+  ["диска","царапина"],["плеера","шум"],["кассеты","треск"],
+  ["экрана","блик"],["обоев","градиент"],["баннера","пиксель"],
+  ["джинсов","клёш"],["папино","молоко"],["логотипа","отблеск"],["пейджера","сигнал"],
+  ["дисковода","стук"],["обложки","блеск"],["модема","писк"],
+  ["принтера","запах"],["сайта","фон"],["курсора","след"],
+  ["обоев","узор"],["кассетника","скрип"],
+];
+
+const PHRASES_EN = [
+  ["monitor","glare"],["photoshop","shadow"],["keyboard","dust"],
+  ["disc","scratch"],["player","noise"],["cassette","creak"],
+  ["screen","gloss"],["wallpaper","gradient"],["banner","pixel"],
+  ["jeans","flare"],["dad’s","milk"],["logo","shine"],["pager","signal"],
+  ["drive","knock"],["cover","sparkle"],["modem","beep"],
+  ["printer","smell"],["site","background"],["cursor","trail"],
+  ["wallpaper","pattern"],["tape","squeak"],
+];
+
 
   const customLines = getCustomLines();
-  const [w1, w2] = customLines ?? sample(PHRASES);
+ const pool = currentLang === 'en' ? PHRASES_EN : PHRASES_RU;
+const [w1, w2] = customLines ?? sample(pool);
   const fonts = pickFonts();
 
   if (line1) renderWord(line1, mixedCase(w1), fonts);
@@ -281,6 +541,8 @@ function applyLiveStroke(){
     composition.style.removeProperty('--stroke-w');
   }
 }
+
+
 
 // === ПОСТРОЕНИЕ КОЛЬЦЕВОЙ МАСКИ (для обводки вокруг силуэта) ===
 async function buildOuterStrokeMask(baseMaskURL, growPx){
@@ -392,7 +654,7 @@ async function applySilhouetteStroke(){
   imgEl.src = coloredRingURL + '#' + Date.now();
 
   silhouetteStroke.classList.add('active');
-  silhouetteStroke.style.outline = '1px dashed #f0f';
+
 silhouetteStroke.style.background = 'transparent';
 
 
@@ -556,6 +818,10 @@ async function roundCorners() {
   });
   document.body.appendChild(snap);
 
+   // ВРЕМЕННО прячем overlay, чтобы html2canvas не видел css-mask
+  const overlayWasHidden = overlay.hidden;
+  overlay.hidden = true;
+  
   const baseCanvas = await html2canvas(snap, {
     backgroundColor: '#ffffff',
     scale: SCALE,
@@ -563,6 +829,9 @@ async function roundCorners() {
     scrollX: 0, scrollY: 0,
     windowWidth: width, windowHeight: height
   });
+  
+  // возвращаем overlay как было
+  overlay.hidden = overlayWasHidden;
 
   document.body.removeChild(snap);
 
@@ -978,30 +1247,34 @@ btnCringe?.addEventListener('click', () => {
 btnCrosses?.addEventListener('click', toggleCrosses);
 
 btnMicro?.addEventListener('click', () => {
-  const txt = prompt('Мелкий текст (слова через пробел):', 'шёпот под буквами');
+  const t = I18N[currentLang];
+  const txt = prompt(t.micro_prompt_title, t.micro_prompt_default);
   if (!txt) return;
+
   removeMicro();
   const words = txt.trim().split(/\s+/).filter(Boolean);
   if (!words.length) return;
+
   const row = document.createElement('div');
   row.className = 'micro-row';
   row.dataset.size = ['sm','md','lg'][rand(0,2)];
   row.style.fontFamily = `'${sample(SANS_POOL)}', system-ui, sans-serif`;
+
   for (const w of words){
     const chip = document.createElement('span');
     chip.className = 'micro-chip';
     chip.textContent = w;
     row.appendChild(chip);
   }
+
   if (words.length === 1) row.style.justifyContent = 'center';
-  if (Math.random() < 0.5) {
-    composition.insertBefore(row, line1);
-  } else {
-    composition.insertBefore(row, line2.nextSibling);
-  }
+  if (Math.random() < 0.5) composition.insertBefore(row, line1);
+  else composition.insertBefore(row, line2.nextSibling);
+
   resetRoundState();
   applyCompositionShift();
 });
+
 
 btnInvert?.addEventListener('click', () => {
   const toLight = !stage.classList.contains('light');
@@ -1116,3 +1389,33 @@ strokeToggle?.addEventListener('click', async ()=>{
 
 // первичный рендер
 generate();
+
+// --- Перенос footer под #stage только на мобилке ---
+const footerEl = document.querySelector('footer');
+const stageEl  = document.getElementById('stage');
+
+let footerHomeParent = footerEl?.parentElement || null;
+let footerHomeNext   = footerEl?.nextSibling || null;
+
+function placeFooterByViewport(){
+  if (!footerEl || !stageEl) return;
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+  if (isMobile) {
+    // поставить сразу ПОСЛЕ #stage (не внутрь него)
+    if (stageEl.nextElementSibling !== footerEl) stageEl.after(footerEl);
+    // вдруг где-то был display:none
+    footerEl.style.display = '';
+  } else {
+    // вернуть на место
+    if (footerHomeParent && !footerHomeParent.contains(footerEl)) {
+      if (footerHomeNext) footerHomeParent.insertBefore(footerEl, footerHomeNext);
+      else footerHomeParent.appendChild(footerEl);
+    }
+  }
+}
+
+// запуск и подписка
+placeFooterByViewport();
+window.addEventListener('resize', placeFooterByViewport);
+
