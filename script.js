@@ -318,7 +318,35 @@ async function buildOuterStrokeMask(baseMaskURL, growPx){
   return c.toDataURL('image/png');
 }
 
-// === ОБВОДКА ВОКРУГ СИЛУЭТА ===
+function forceRepaint(el){
+  // хак для iOS Safari: короткий translateZ и чтение offsetHeight
+  if (!el) return;
+  const prev = el.style.transform;
+  el.style.transform = (prev ? prev + ' ' : '') + 'translateZ(0)';
+  // триггерим layout
+  void el.offsetHeight;
+  // откатываем
+  el.style.transform = prev || '';
+}
+
+async function applySilhouetteStroke(){
+  if (!silhouetteStroke) return;
+
+  if (!isRounded || !maskURL || !strokeOnSil || strokeWidthPx <= 0){
+    silhouetteStroke.classList.remove('active');
+    silhouetteStroke.style.webkitMaskImage = '';
+    silhouetteStroke.style.maskImage = '';
+    return;
+  }
+  
+  function forceRepaint(el) {
+  if (!el) return;
+  // меняем свойство и возвращаем назад, чтобы Safari перерисовал
+  el.style.transform += ' rotate(0.0001deg)';
+  void el.offsetHeight; // триггер layout
+  el.style.transform = el.style.transform.replace(' rotate(0.0001deg)', '');
+}
+
 async function applySilhouetteStroke(){
   if (!silhouetteStroke) return;
 
@@ -331,13 +359,33 @@ async function applySilhouetteStroke(){
 
   strokeMaskURL = await buildOuterStrokeMask(maskURL, strokeWidthPx);
 
+  const url = `url(${strokeMaskURL})`;
   silhouetteStroke.style.background = strokeColor;
   silhouetteStroke.style.opacity = 1;
-  silhouetteStroke.style.webkitMaskImage = `url(${strokeMaskURL})`;
-  silhouetteStroke.style.maskImage      = `url(${strokeMaskURL})`;
+  silhouetteStroke.style.webkitMaskImage = url;
+  silhouetteStroke.style.maskImage      = url;
+  silhouetteStroke.classList.add('active');
+  silhouetteStroke.style.transform = ''; 
+
+  forceRepaint(silhouetteStroke); // ← пинок Safari
+}
+
+
+  strokeMaskURL = await buildOuterStrokeMask(maskURL, strokeWidthPx);
+
+  silhouetteStroke.style.background = strokeColor;
+  silhouetteStroke.style.opacity = 1;
+
+  const url = `url(${strokeMaskURL})`;
+  silhouetteStroke.style.webkitMaskImage = url;  // префикс
+  silhouetteStroke.style.maskImage      = url;   // без префикса
   silhouetteStroke.classList.add('active');
   silhouetteStroke.style.transform = ''; // двигается как overlay
+
+  // iOS Safari repaint kick
+  forceRepaint(silhouetteStroke);
 }
+
 
 // === ШУМ ДЛЯ ГРАДИЕНТА ===
 function makeNoiseTexture(tile=64, alpha=28) {
@@ -967,11 +1015,12 @@ colorModal?.addEventListener('click', e=>{ if(e.target===e.currentTarget) colorM
 function openColor(){ 
   colorModal.hidden = false;
   if (colorPick)  colorPick.value  = currentInk;
-  if (colorAlpha) colorAlpha.value = 100;
+  if (colorAlpha) colorAlpha.value = Math.round((silAlpha ?? 1) * 100);
   if (strokeColorInput)    strokeColorInput.value    = strokeColor;
   if (strokeWidthInput)    strokeWidthInput.value    = strokeWidthPx;
-  if (strokeEnabledInput)  strokeEnabledInput.checked = strokeEnabled;
+  if (strokeEnabledInput)  strokeEnabledInput.checked = !!strokeOnSil; // <-- было strokeEnabled
 }
+
 
 colorPick?.addEventListener('input', ()=>{
   currentInk = colorPick.value;
@@ -1009,14 +1058,30 @@ strokeEnabledInput?.addEventListener('change', async ()=>{
 
 // одна кнопка «Обводка» — и до, и после силуэта
 strokeToggle?.addEventListener('click', async ()=>{
-  if (!isRounded){
+  if (!isRounded) {
+    // живая обводка до силуэта
     liveStrokeOn = !liveStrokeOn;
     applyLiveStroke();
   } else {
+    // обводка по силуэту
     strokeOnSil = !strokeOnSil;
-    await applySilhouetteStroke();
+    if (strokeOnSil && maskURL) {
+      strokeMaskURL = await buildOuterStrokeMask(maskURL, strokeWidthPx);
+      const url = `url(${strokeMaskURL})`;
+      silhouetteStroke.style.background = strokeColor;
+      silhouetteStroke.style.opacity = 1;
+      silhouetteStroke.style.webkitMaskImage = url;
+      silhouetteStroke.style.maskImage = url;
+      silhouetteStroke.classList.add('active');
+      forceRepaint(silhouetteStroke); // пинок
+    } else {
+      silhouetteStroke.classList.remove('active');
+      silhouetteStroke.style.webkitMaskImage = '';
+      silhouetteStroke.style.maskImage = '';
+    }
   }
 });
+
 
 // первичный рендер
 generate();
