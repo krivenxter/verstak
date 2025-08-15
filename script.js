@@ -86,6 +86,7 @@ let silAlpha = 1; // фактическая непрозрачность сил�
 
 let currentInk   = '#111111';
 let currentBgUrl = '';
+let currentBgBlobUrl = ''; 
 
 // ===== Состояния силуэта/обводки/шума =====
 let isRounded       = false;
@@ -336,8 +337,8 @@ for (const [inputId, key] of Object.entries(I18N_LABELS_BY_INPUT)){
  document.querySelectorAll('.lang-btn').forEach(b=>{
     b.classList.toggle('active', b.dataset.lang === lang);
   });
-+ // чтобы <html lang="..."> всегда соответствовал выбранному языку
-+ document.documentElement.setAttribute('lang', lang);
+ // чтобы <html lang="..."> всегда соответствовал выбранному языку
+document.documentElement.setAttribute('lang', lang);
   document.documentElement.classList.add('i18n-ready');
 }
 
@@ -1369,6 +1370,30 @@ strokeEnabledInput?.addEventListener('change', async ()=>{
 });
 
 
+
+
+
+const btnBgPin = document.getElementById('bgPin');
+
+async function randomPinterestBg(){
+  try {
+    // URL воркера, например:
+    // https://weirdcore-proxy.your-subdomain.workers.dev/?q=weirdcore%20aesthetic
+    const workerURL = 'https://<твоя_зона>.workers.dev/?q=' + encodeURIComponent('weirdcore aesthetic') + '&_=' + Date.now();
+
+    // просто ставим его как фоновую картинку
+    bgLayer.style.backgroundImage = `url(${workerURL})`;
+    bgLayer.hidden = false;
+  } catch (e) {
+    console.error(e);
+    // fallback — Unsplash/Picsum
+    await setBgUrl(randomUnsplashUrl());
+  }
+}
+
+btnBgPin?.addEventListener('click', randomPinterestBg);
+
+
 // одна кнопка «Обводка» — и до, и после силуэта
 strokeToggle?.addEventListener('click', async ()=>{
   if (!isRounded){
@@ -1384,6 +1409,50 @@ strokeToggle?.addEventListener('click', async ()=>{
     await applySilhouetteStroke();
   }
 });
+
+const btnBgRandom = document.getElementById('bgRandom');
+
+btnBgRandom?.addEventListener('click', () => {
+  setBgUrl(randomUnsplashUrl());
+});
+
+
+
+function randomPicsumUrl(){
+  const w = 1080, h = 1440; // 3:4 под вашу сцену
+  return `https://picsum.photos/${w}/${h}?random=${Date.now()}`;
+}
+
+function randomUnsplashUrl(){
+  const q = encodeURIComponent('weirdcore aesthetic');
+  return `https://source.unsplash.com/random/1080x1440/?${q}&_=${Date.now()}`;
+}
+
+
+async function setBgUrl(url){
+  try {
+    const resp = await fetch(url, {
+      cache: 'no-store',
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer'
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const blob = await resp.blob();
+    if (currentBgBlobUrl) URL.revokeObjectURL(currentBgBlobUrl);
+    currentBgBlobUrl = URL.createObjectURL(blob);
+
+    bgLayer.style.backgroundImage = `url(${currentBgBlobUrl})`;
+    bgLayer.hidden = false;
+  } catch (e) {
+    console.error('bg load failed', e);
+    // одноразовый фоллбек, чтобы не уйти в рекурсию
+    if (!/picsum\.photos/.test(url)) {
+      const fallback = `https://picsum.photos/seed/${Date.now()}/1080/1440`;
+      setBgUrl(fallback);
+    }
+  }
+}
 
 
 
