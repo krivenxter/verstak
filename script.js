@@ -160,6 +160,7 @@ const I18N = {
     questions: 'По вопросам сюда',
     micro_prompt_title: 'Мелкий текст (слова через пробел):',
 micro_prompt_default: 'шёпот под буквами',
+    bg_random: 'Рандом фон',
 
   },
   en: {
@@ -203,6 +204,7 @@ micro_prompt_default: 'шёпот под буквами',
     questions: 'Contact & Troubleshooting',
     micro_prompt_title: 'Small text (space-separated words):',
 micro_prompt_default: 'whisper under letters',
+    bg_random: 'Random BG',
   }
 };
 
@@ -228,6 +230,7 @@ const I18N_MAP = [
 ['.who-3','credit_label'],  // лейбл слева от ссылки
 ['a','credit_name'],
   ['.who-1 a','questions'],
+  ['#bgRandom','bg_random'],
 
   // Модалка градиента
   ['#gradTitle','grad_title'],
