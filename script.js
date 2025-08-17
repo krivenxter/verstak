@@ -77,6 +77,31 @@ const gradBias2   = document.getElementById('gradBias2');
 const gradNoise   = document.getElementById('gradNoise');
 const gradNoiseSize = document.getElementById('gradNoiseSize');
 
+const shadowModal   = document.getElementById('shadowModal');
+const shadowToggle  = document.getElementById('shadowToggle');
+const shadowClose   = document.getElementById('shadowClose');
+const shadowDone    = document.getElementById('shadowDone');
+const shadowApply   = document.getElementById('shadowApply');
+const shadowClear   = document.getElementById('shadowClear');
+
+const shadowColorInp = document.getElementById('shadowColor');
+const shadowAlphaInp = document.getElementById('shadowAlpha');
+const shadowBlurInp  = document.getElementById('shadowBlur');
+const shadowInsetInp = document.getElementById('shadowInset');
+
+const innerShadow   = document.getElementById('innerShadow');
+const shadowOffsetXInp = document.getElementById('shadowOffsetX');
+const shadowOffsetYInp = document.getElementById('shadowOffsetY');
+
+let shadowParams = {
+  color: '#919191',
+  alpha: 0.35,
+  blur:  24,
+  inset: 12,
+  offsetX: 0,
+  offsetY: 0
+};
+
 // ===== Размер шрифта по ширине stage =====
 const FS_MIN = 20;
 const FS_MAX = 102;
@@ -598,6 +623,132 @@ async function buildOuterStrokeMask(baseMaskURL, growPx){
 }
 
 
+async function erodeMaskURL(maskURL, shrinkPx){
+  if (!maskURL || shrinkPx <= 0) return maskURL;
+
+  const srcImg = await loadImage(maskURL);
+  const w = srcImg.width, h = srcImg.height;
+
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+
+  // стартуем с белого прямоугольника и пересекаем его со сдвигами маски — получится "эрозия"
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,w,h);
+  ctx.globalCompositeOperation = 'destination-in';
+
+  const r = Math.max(1, Math.round(shrinkPx));
+  const step = Math.max(1, Math.round(r / 3));
+
+  for (let dy = -r; dy <= r; dy += step){
+    for (let dx = -r; dx <= r; dx += step){
+      ctx.drawImage(srcImg, dx, dy);
+    }
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  return c.toDataURL('image/png');
+}
+
+async function buildInnerShadowPNG(maskURL, {color, alpha, blur, inset, offsetX=0, offsetY=0}){
+  if (!maskURL) return '';
+
+  const erodedURL = inset > 0 ? await erodeMaskURL(maskURL, inset) : maskURL;
+  const srcImg = await loadImage(maskURL);
+  const eroImg = await loadImage(erodedURL);
+  const w = srcImg.width, h = srcImg.height;
+
+  // строим внутреннее «кольцо»: маска - эрозия
+  const ring = document.createElement('canvas'); ring.width = w; ring.height = h;
+  const rctx = ring.getContext('2d');
+  rctx.drawImage(srcImg, 0, 0);
+  rctx.globalCompositeOperation = 'destination-out';
+  rctx.drawImage(eroImg, 0, 0);
+  rctx.globalCompositeOperation = 'source-over';
+
+  // красим картинку и маскируем кольцом со сдвигом
+  const out = document.createElement('canvas'); out.width = w; out.height = h;
+  const octx = out.getContext('2d');
+
+  octx.fillStyle = color;
+  octx.fillRect(0,0,w,h);
+
+  octx.globalCompositeOperation = 'destination-in';
+  octx.filter = blur > 0 ? `blur(${blur}px)` : 'none';
+  // сдвиг тени
+  octx.drawImage(ring, offsetX, offsetY);
+  octx.filter = 'none';
+  octx.globalCompositeOperation = 'source-over';
+
+  if (alpha < 1){
+    octx.globalCompositeOperation = 'destination-in';
+    octx.fillStyle = `rgba(0,0,0,${alpha})`;
+    octx.fillRect(0,0,w,h);
+    octx.globalCompositeOperation = 'source-over';
+  }
+
+  // гарантируем, что тень остаётся внутри ИСХОДНОЙ маски
+  octx.globalCompositeOperation = 'destination-in';
+  octx.drawImage(srcImg, 0, 0);
+  octx.globalCompositeOperation = 'source-over';
+
+  return out.toDataURL('image/png');
+}
+
+
+function openShadow(){
+  shadowModal.hidden = false;
+  shadowColorInp.value = shadowParams.color;
+  shadowAlphaInp.value = Math.round(shadowParams.alpha * 100);
+  shadowBlurInp.value  = shadowParams.blur;
+  shadowInsetInp.value = shadowParams.inset;
+  shadowOffsetXInp.value = shadowParams.offsetX;
+  shadowOffsetYInp.value = shadowParams.offsetY;
+}
+
+async function applyInnerShadow(){
+  shadowParams.color  = shadowColorInp.value || shadowParams.color;
+  shadowParams.alpha  = clamp(+shadowAlphaInp.value/100, 0, 1);
+  shadowParams.blur   = Math.max(0, +shadowBlurInp.value || 0);
+  shadowParams.inset  = Math.max(0, +shadowInsetInp.value || 0);
+  shadowParams.offsetX = Math.round(+shadowOffsetXInp.value || 0);
+  shadowParams.offsetY = Math.round(+shadowOffsetYInp.value || 0);
+  
+  [shadowColorInp, shadowAlphaInp, shadowBlurInp, shadowInsetInp,
+ shadowOffsetXInp, shadowOffsetYInp].forEach(inp=>{
+  inp?.addEventListener('input', applyInnerShadow);
+});
+
+  const baseMaskURL = isRounded && maskURL ? maskURL : await buildCurrentMaskURL();
+  const pngURL = await buildInnerShadowPNG(baseMaskURL, shadowParams);
+
+  if (pngURL){
+    innerShadow.style.backgroundImage = `url(${pngURL})`;
+    innerShadow.classList.add('active');
+    overlay.hidden = false;
+    overlay.style.background = 'transparent';
+    overlay.style.transform = composition?.style.transform || '';
+  } else {
+    innerShadow.classList.remove('active');
+    innerShadow.style.backgroundImage = '';
+  }
+}
+
+
+
+
+function clearInnerShadow(){
+  innerShadow.classList.remove('active');
+  innerShadow.style.backgroundImage = '';
+}
+
+shadowToggle?.addEventListener('click', openShadow);
+shadowClose?.addEventListener('click', ()=> shadowModal.hidden = true);
+shadowDone?.addEventListener('click',  ()=> shadowModal.hidden = true);
+shadowClear?.addEventListener('click', clearInnerShadow);
+shadowApply?.addEventListener('click', applyInnerShadow);
+
+
 document.querySelector('label[for="strokeEnabled"]')?.addEventListener('click', e=>{
   e.preventDefault();
   strokeEnabledInput.checked = !strokeEnabledInput.checked;
@@ -915,12 +1066,12 @@ async function roundCorners() {
   work.width = flat.width; work.height = flat.height;
   const wctx = work.getContext('2d');
 
-  wctx.filter = 'blur(3.5px)';
+  wctx.filter = 'blur(2.5px)';
   wctx.drawImage(flat, 0, 0);
   wctx.filter = 'none';
 
   const img = wctx.getImageData(0, 0, work.width, work.height);
-  const d = img.data, THRESHOLD = 140;
+  const d = img.data, THRESHOLD = 120;
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i], g = d[i+1], b = d[i+2];
     const lum = 0.2126*r + 0.7152*g + 0.0722*b;
@@ -955,10 +1106,79 @@ async function roundCorners() {
   // лайв-обводку не включаем (она уже запекается при повторных снапах)
   if (liveStrokeOn) { liveStrokeOn = false; applyLiveStroke(); }
 
+  // ...после того как включили overlay/силуэт...
+  // композицию прячем
+  composition.style.visibility = 'hidden';
+
+  // --- ДОБАВИ ЭТО ---
+  // исходные .micro-* уже «запечены» в силуэт — удаляем их из DOM
+  removeMicro();
+  // --- КОНЕЦ ДОБАВКИ ---
+
+  // ВАЖНО: не трогаем флаг обводки — если была включена, остаётся включённой
+  await applySilhouetteStroke();
+
+  // лайв-обводку не включаем (она уже запекается при повторных снапах)
+  if (liveStrokeOn) { liveStrokeOn = false; applyLiveStroke(); }
+
   isRounded = true;
   if (btnUndo) btnUndo.hidden = false;
+  
+  // если была включена внутренняя тень — пересоберём по новой маске силуэта
+if (innerShadow.classList.contains('active')) {
+  await applyInnerShadow();
 }
 
+
+}
+
+async function buildCurrentMaskURL(){
+  // Снимок сцены без overlay, как в roundCorners
+  const SCALE = 2;
+  const { width, height } = stage.getBoundingClientRect();
+
+  const snap = stage.cloneNode(true);
+  const snapOverlay = snap.querySelector('#overlay');
+  if (snapOverlay) snapOverlay.hidden = true;
+
+  Object.assign(snap.style, {
+    position:'fixed', left:'-99999px', top:'0',
+    width: width + 'px', height: height + 'px'
+  });
+  document.body.appendChild(snap);
+
+  const baseCanvas = await html2canvas(snap, {
+    backgroundColor: '#ffffff',
+    scale: SCALE,
+    useCORS: true,
+    scrollX: 0, scrollY: 0,
+    windowWidth: width, windowHeight: height
+  });
+
+  document.body.removeChild(snap);
+
+  // Порог как в roundCorners
+  const work = document.createElement('canvas');
+  work.width = baseCanvas.width;
+  work.height = baseCanvas.height;
+  const wctx = work.getContext('2d');
+
+  wctx.filter = 'blur(3.5px)';
+  wctx.drawImage(baseCanvas, 0, 0);
+  wctx.filter = 'none';
+
+  const img = wctx.getImageData(0, 0, work.width, work.height);
+  const d = img.data, THRESHOLD = 140;
+  for (let i=0;i<d.length;i+=4){
+    const r = d[i], g = d[i+1], b = d[i+2];
+    const lum = 0.2126*r + 0.7152*g + 0.0722*b;
+    d[i]=255; d[i+1]=255; d[i+2]=255;
+    d[i+3]= lum < THRESHOLD ? 255 : 0;
+  }
+  wctx.putImageData(img,0,0);
+
+  return work.toDataURL('image/png');
+}
 
 
 
@@ -982,6 +1202,9 @@ function undoAll(){
     silhouetteFill.style.transform = '';
   }
   if (btnUndo) btnUndo.hidden = true;
+  
+  clearInnerShadow();
+
 }
 
 // === ДВИЖЕНИЕ КОМПОЗИЦИИ ===
@@ -1163,6 +1386,18 @@ octx.drawImage(fill, 0, ty);
 
   }
 
+  // 4.5) INNER SHADOW — дорисовываем PNG тени поверх базы
+if (innerShadow.classList.contains('active')) {
+  const bg = innerShadow.style.backgroundImage || '';
+  const m = bg.match(/^url\(["']?(.+?)["']?\)/i);
+  if (m && m[1]) {
+    const shImg = await loadImage(m[1]);
+    // ty — уже посчитанный вертикальный сдвиг сцены (translateY)
+    octx.drawImage(shImg, 0, ty, out.width, out.height);
+  }
+}
+
+  
   // 5) сохранить PNG
   out.toBlob((blob)=>{
     if (!blob) return;
@@ -1250,15 +1485,13 @@ btnCringe?.addEventListener('click', () => {
 
 btnCrosses?.addEventListener('click', toggleCrosses);
 
-btnMicro?.addEventListener('click', () => {
-  const t = I18N[currentLang];
-  const txt = prompt(t.micro_prompt_title, t.micro_prompt_default);
-  if (!txt) return;
+function removeMicro(){
+  // убираем микротекст и из композиции, и из «плавающих» слоёв
+  composition?.querySelector('.micro-row')?.remove();
+  stage?.querySelectorAll('.micro-floating').forEach(n => n.remove());
+}
 
-  removeMicro();
-  const words = txt.trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return;
-
+function makeMicroRow(words){
   const row = document.createElement('div');
   row.className = 'micro-row';
   row.dataset.size = ['sm','md','lg'][rand(0,2)];
@@ -1270,14 +1503,58 @@ btnMicro?.addEventListener('click', () => {
     chip.textContent = w;
     row.appendChild(chip);
   }
+  return row;
+}
 
-  if (words.length === 1) row.style.justifyContent = 'center';
-  if (Math.random() < 0.5) composition.insertBefore(row, line1);
-  else composition.insertBefore(row, line2.nextSibling);
+btnMicro?.addEventListener('click', () => {
+  const t = I18N[currentLang];
 
-  resetRoundState();
+  // 1) всегда убираем текущий микротекст при клике
+  removeMicro();
+
+  // 2) спрашиваем новый — если пусто или Cancel, выходим (т.е. просто стерли)
+  const txt = prompt(t.micro_prompt_title, t.micro_prompt_default);
+  if (!txt) return;
+
+  const words = txt.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return; // тоже ничего не добавляем
+
+  // --- дальше всё как раньше: выбираем режим и добавляем ---
+  const modes = ['relative', 'top', 'bottom'];
+  const mode = modes[rand(0, modes.length - 1)];
+
+  const makeMicroRow = (words) => {
+    const row = document.createElement('div');
+    row.className = 'micro-row';
+    row.dataset.size = ['sm','md','lg'][rand(0,2)];
+    row.style.fontFamily = `'${sample(SANS_POOL)}', system-ui, sans-serif`;
+    for (const w of words){
+      const chip = document.createElement('span');
+      chip.className = 'micro-chip';
+      chip.textContent = w;
+      row.appendChild(chip);
+    }
+    return row;
+  };
+
+  if (mode === 'relative') {
+    const row = makeMicroRow(words);
+    if (words.length === 1) row.style.justifyContent = 'center';
+    if (Math.random() < 0.5) composition.insertBefore(row, line1);
+    else composition.insertBefore(row, line2.nextSibling);
+  } else {
+    const wrap = document.createElement('div');
+    wrap.className = `micro-floating ${mode}`;
+    wrap.style.color = currentInk || (stage.classList.contains('light') ? '#fff' : '#000');
+    wrap.appendChild(makeMicroRow(words));
+    stage.appendChild(wrap);
+  }
+
+  resetRoundState();   // не ломаем «Силуэт»
   applyCompositionShift();
 });
+
+
 
 
 btnInvert?.addEventListener('click', () => {
