@@ -2,11 +2,10 @@
 <!doctype html>
 <html lang="en">
 <head>
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="manifest" href="site.webmanifest">
-
   <!-- прячем тело до применения i18n -->
 <style>
   html:not(.i18n-ready) body { visibility: hidden; }
@@ -27,6 +26,7 @@
   <!-- Google Fonts (странные + базовые, с кириллицей) -->
   <link href="https://fonts.googleapis.com/css2?family=Alice&family=Anonymous+Pro:wght@400;700&family=Bitter:wght@400;700&family=Comfortaa:wght@400;700&family=Cormorant+Garamond:wght@400;700&family=Didact+Gothic&family=Exo+2:wght@400;700&family=Forum&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Jura:wght@400;700&family=Kelly+Slab&family=Kurale&family=Lobster&family=Marck+Script&family=Montserrat:wght@400;700&family=Neucha&family=Noto+Sans+Mono:wght@400;700&family=Noto+Serif+Display:wght@400;700&family=Oranienbaum&family=Oswald:wght@400;700&family=PT+Mono&family=PT+Sans:wght@400;700&family=PT+Serif:wght@400;700&family=Philosopher:wght@400;700&family=Play:wght@400;700&family=Playfair+Display:wght@400;700&family=Poiret+One&family=Roboto:wght@400;700&family=Rubik:wght@400;700&family=Ruslan+Display&family=Russo+One&family=Stalinist+One&family=Tenor+Sans&family=Ubuntu:wght@400;700&family=Unbounded:wght@400;700&family=Yeseva+One&family=Comforter&family=Great+Vibes&family=Manrope:wght@200..800&family=Oi&family=Pixelify+Sans:wght@400..700&family=Rubik+Iso&family=Rubik+Puddles&family=Rubik+Wet+Paint&family=Tektur:wght@400..900&family=Inter:wght@400..900&family=Unbounded:wght@200..900&family=Viaoda+Libre&display=swap" rel="stylesheet">
    <link rel="stylesheet" href="style.css" />
+
   <!-- html2canvas для PNG -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
@@ -81,6 +81,9 @@
         <button id="colorToggle" class="secondary">Цвет</button>
         <button id="strokeToggle" class="secondary">Обводка</button>
 
+        <button id="shadowToggle" class="secondary">Тень</button>
+
+        
         <button id="round" class="secondary">Силуэт <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path fill-rule="evenodd" clip-rule="evenodd" d="M19.5506 18.6668C20.0937 19.0468 20.7655 19.1956 21.4183 19.0805C22.071 18.9653 22.6514 18.5957 23.0316 18.0528L23.3186 17.6428L15.9686 12.4968L23.3186 7.34976L23.0316 6.93976C22.6512 6.39702 22.0708 6.02755 21.418 5.9126C20.7653 5.79765 20.0936 5.94662 19.5506 6.32676L13.3536 10.6658L10.7836 8.86576C11.1072 7.85482 11.0629 6.76204 10.6587 5.78056C10.2545 4.79908 9.5164 3.99207 8.57477 3.50215C7.63314 3.01223 6.54864 2.87093 5.51292 3.10324C4.4772 3.33555 3.55693 3.92649 2.91475 4.77165C2.27257 5.61681 1.94982 6.66177 2.00354 7.72187C2.05725 8.78196 2.48397 9.78895 3.20829 10.5649C3.93261 11.3408 4.90789 11.8357 5.96179 11.9621C7.01569 12.0885 8.08035 11.8384 8.96764 11.2558L10.7376 12.4958L8.96964 13.7358C8.08271 13.1527 7.01824 12.9019 5.96431 13.0277C4.91038 13.1535 3.93485 13.6478 3.21009 14.4233C2.48533 15.1987 2.058 16.2054 2.00361 17.2654C1.94922 18.3254 2.27127 19.3706 2.91286 20.2161C3.55445 21.0617 4.47427 21.6532 5.50978 21.8862C6.5453 22.1193 7.62985 21.9787 8.5718 21.4895C9.51374 21.0003 10.2524 20.1939 10.6574 19.2127C11.0623 18.2316 11.1074 17.1389 10.7846 16.1278L13.3536 14.3278L19.5506 18.6668ZM6.49564 5.99476C6.69262 5.99476 6.88768 6.03356 7.06967 6.10894C7.25165 6.18432 7.41701 6.29481 7.5563 6.4341C7.69559 6.57339 7.80608 6.73875 7.88146 6.92074C7.95684 7.10273 7.99564 7.29778 7.99564 7.49476C7.99564 7.69175 7.95684 7.8868 7.88146 8.06879C7.80608 8.25078 7.69559 8.41613 7.5563 8.55542C7.41701 8.69471 7.25165 8.8052 7.06967 8.88058C6.88768 8.95596 6.69262 8.99476 6.49564 8.99476C6.09782 8.99476 5.71628 8.83673 5.43498 8.55542C5.15368 8.27412 4.99564 7.89259 4.99564 7.49476C4.99564 7.09694 5.15368 6.71541 5.43498 6.4341C5.71628 6.1528 6.09782 5.99476 6.49564 5.99476ZM6.49564 15.9948C6.89346 15.9948 7.27499 16.1528 7.5563 16.4341C7.8376 16.7154 7.99564 17.0969 7.99564 17.4948C7.99564 17.8926 7.8376 18.2741 7.5563 18.5554C7.27499 18.8367 6.89346 18.9948 6.49564 18.9948C6.09781 18.9948 5.71628 18.8367 5.43498 18.5554C5.15368 18.2741 4.99564 17.8926 4.99564 17.4948C4.99564 17.0969 5.15368 16.7154 5.43498 16.4341C5.71628 16.1528 6.09781 15.9948 6.49564 15.9948Z" fill="black"/>
 </svg>
@@ -126,6 +129,8 @@
 
       <!-- оверлей для результата скругления (не ломает DOM) -->
 <div id="overlay" class="overlay" hidden>
+  <div id="innerShadow" class="inner-shadow" aria-hidden="true"></div>
+
    <div id="silhouetteStroke" class="silhouette-stroke" aria-hidden="true"></div>
   <div id="silhouetteFill" class="silhouette-fill" aria-hidden="true"></div>
 </div>
@@ -220,6 +225,43 @@
     </div>
   </div>
 </div>
+    
+    <!-- Модалка внутренней тени -->
+<div id="shadowModal" class="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shadowTitle">
+    <div class="modal-head">
+      <div id="shadowTitle" class="modal-title">Внутренняя тень</div>
+      <button id="shadowClose" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="modal-body">
+      <label>Цвет
+        <input type="color" id="shadowColor" value="#000000">
+      </label>
+      <label>Прозрачность (%)
+        <input type="range" id="shadowAlpha" min="0" max="100" value="35">
+      </label>
+      <label>Размытие (px)
+        <input type="range" id="shadowBlur" min="0" max="60" value="24">
+      </label>
+      <label>Размер внутрь (px)
+        <input type="range" id="shadowInset" min="0" max="60" value="12">
+      </label>
+      <label>Смещение X (px)
+  <input type="range" id="shadowOffsetX" min="-80" max="80" value="0">
+</label>
+<label>Смещение Y (px)
+  <input type="range" id="shadowOffsetY" min="-80" max="80" value="0">
+</label>
+
+    </div>
+    <div class="modal-foot">
+      <button id="shadowApply">Применить</button>
+      <button id="shadowClear" class="secondary" type="button">Убрать тень</button>
+      <button id="shadowDone" class="secondary" type="button">Готово</button>
+    </div>
+  </div>
+</div>
+
 
 <script src="script.js"></script>
 </body>
