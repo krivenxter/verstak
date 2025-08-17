@@ -70,7 +70,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 85%;
+    width: 90%;
   flex-wrap: wrap;
 }
 
@@ -80,6 +80,28 @@ body {
     color: #fff;
     border-color: #b7b7b7;}
 
+
+.micro-floating{
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(108% - 40px);   /* чтобы было по краям по 20px */
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 1;                 /* над фоном, под overlay ок */
+  pointer-events: none;       /* не мешаем кликам по UI */
+  color: inherit;             /* возьмём цвет контейнера */
+}
+
+.micro-floating.top{    top: 20px; }
+.micro-floating.bottom{ bottom: 20px; }
+
+/* Цвет для светлой темы сцены */
+.stage.light .micro-floating { color: #fff; }
+
+/* Чуть уменьшить межстрочный для чипов, когда они висят отдельно */
+.micro-floating .micro-chip { line-height: 1.1; }
 
 .micro-chip{
   font-size:14px;                 /* базовый */
@@ -122,6 +144,22 @@ body {
   background-repeat: no-repeat;
 }
 
+/* Слой внутренней тени — поверх заливки, под обводкой */
+.inner-shadow{
+  position: absolute;
+  inset: 0;
+  display: none;               /* включаем, когда есть картинка */
+  pointer-events: none;
+  z-index: 2;                /* между fill (1) и stroke (2) */
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  background-position: 0 0;
+}
+.inner-shadow.active{ display:block; }
+
+/* адаптация для светлой сцены не нужна: тень отрисована как PNG */
+
+
 .cross{
   position:absolute;
   width: var(--cross-size, 28px);
@@ -157,7 +195,7 @@ body {
   display: none;              /* по умолчанию скрыт */
   pointer-events: none;
   background: transparent !important;
-  z-index: 2;                 /* выше заливки */
+  z-index: 3;                 /* выше заливки */
   will-change: transform, opacity;
   contain: layout paint;
   backface-visibility: hidden;
@@ -600,6 +638,13 @@ a {
   }
 
 @media (max-width: 768px) {
+  
+  /* На мобильном — пусть тоже работает как ожидается */
+@media (max-width: 768px){
+  .micro-floating{ width: calc(108% - 32px); }
+  .micro-floating.top{ top: 16px; }
+  .micro-floating.bottom{ bottom: 16px; }
+}
   
   
 footer {
