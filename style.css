@@ -52,6 +52,8 @@ body {
 .stage.light .composition { color:#fff; }
 .composition .ch { color: inherit !important; }
 
+.line { transform-origin: center center; }
+
 /* мелкая типографика */
 .micro{
   font-size: 14px;
@@ -286,7 +288,7 @@ button {
       font-variant: all-petite-caps;
     letter-spacing: -0.2px;
   border: 0; padding: 16px 16px; border-radius: 50px; cursor: pointer;
-  background: #111; color: #fff; box-shadow: 0 6px §14px rgba(0,0,0,.15);
+  background: #111; color: #fff; 
   transition: transform .06s ease, box-shadow .2s ease;
       max-height: 40px;
 }
@@ -356,6 +358,39 @@ button:hover {
 button#soon-label:hover {
       box-shadow: none;
 }
+
+/* Модалка мелкого текста */
+.micro-grid {
+  grid-template-columns: 1fr; /* по одной колонке — компактно */
+}
+.micro-grid label input[type="text"]{
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid #c8c8c8;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font: 14px/1.2 Inter, system-ui, sans-serif;
+}
+
+.micro-positions{
+  margin: 0; padding: 0; border: 0;
+  display: grid; gap: 8px;
+}
+.micro-pos-buttons{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.micro-pos-buttons .micro-pos.active{
+  background:#111; color:#fff; border-color:#111;
+}
+
+/* управляем размерами чипов через CSS-переменную */
+.micro-row{ --micro-fs: 14px; font-size: var(--micro-fs); }
+.micro-row[data-size="md"]{ --micro-fs: 16px; }
+.micro-row[data-size="lg"]{ --micro-fs: 20px; }
+
 
 .stage {
     aspect-ratio: 3 / 4 !important;
@@ -437,11 +472,10 @@ button#soon {
 
 
 .caps-text {
-      padding: 0px;
+    padding-bottom: 8px;
     margin: 0px;
     font-size: 10px;
     letter-spacing: 0.4px;
-    font-variant: all-petite-caps;
     font-weight: 600;
 }
 .composition { width: 100%; position: relative; z-index: 1; }
