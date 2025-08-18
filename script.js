@@ -106,10 +106,10 @@ const shadowOffsetYInp = document.getElementById('shadowOffsetY');
 let shadowParams = {
   color: '#B0B0B0',
   alpha: 1,
-  blur:  10,
-  inset: 20,
-  offsetX: 10,
-  offsetY: -10,
+  blur:  11,
+  inset: 30,
+  offsetX: -10,
+  offsetY: -15,
 };
 
 // ===== Размер шрифта по ширине stage =====
@@ -335,8 +335,11 @@ const I18N_MAP = [
 ];
 
 // === ЗУМ ОСНОВНОЙ КОМПОЗИЦИИ ===
-let mainZoom = 1;                  // 1 = без зума
+let mainZoom = 1;    
+let zoomBeforeRound = 1;           // <— НОВОЕ: зум, который был ДО силуэта// 1 = без зума
 let lastShiftPx = 0;               // текущий сдвиг композиции в px (для overlay/экспорта)
+
+let shiftBeforeRound = 0;   // <— НОВОЕ: сдвиг (в шагах) ДО силуэта
 const ZOOM_MIN = 0.6, ZOOM_MAX = 1.8, ZOOM_STEP = 0.1;
 
 const btnZoomIn  = document.getElementById('zoomIn');
@@ -891,7 +894,9 @@ async function applyInnerShadow(){
     innerShadow.classList.add('active');
     overlay.hidden = false;
     overlay.style.background = 'transparent';
-overlay.style.transform = `translateY(${lastShiftPx}px) scale(${mainZoom})`;
+overlay.style.transform = isRounded
+  ? `translateY(${lastShiftPx}px) scale(${mainZoom})`
+  : ''; // до силуэта трансформы не накладываем — они уже «запечены» в PNG тени
     
     // один раз после получения ссылок на инпуты тени:
 [shadowColorInp, shadowAlphaInp, shadowBlurInp, shadowInsetInp, shadowOffsetXInp, shadowOffsetYInp]
@@ -1263,33 +1268,56 @@ const ty = lastShiftPx * SCALE;
   maskURL = work.toDataURL('image/png');
 
   // 4) Подменяем overlay на НОВЫЙ силуэт, сохраняя прежние настройки
-  overlay.hidden = false;
-  overlay.style.background = 'transparent';
-  overlay.style.transform = '';
+// 4) Подменяем overlay на НОВЫЙ силуэт, без повторного масштабирования
+overlay.hidden = false;
+overlay.style.background = 'transparent';
 
-  silhouetteFill.style.background = currentInk;
-  silhouetteFill.style.webkitMaskImage = `url(${maskURL})`;
-  silhouetteFill.style.maskImage      = `url(${maskURL})`;
-  silhouetteFill.classList.add('active');
-  
-isRounded = true; // <-- СНАЧАЛА включаем режим силуэта
-overlay.style.transform = `translateY(${lastShiftPx}px) scale(${mainZoom})`; // сразу корректный вид
-applyCompositionShift(); // синхронизируем текущий сдвиг
-applyMainZoom(); // теперь ветка для overlay сработает
-  // возвращаем прежнюю фактическую альфу силуэта (важно для «только обводка»)
-  if (Number.isFinite(prevAlpha)) {
-    silAlpha = prevAlpha;
-    silhouetteFill.style.opacity = prevAlpha.toFixed(2);
-  }
+// --- ВАЖНО: сдвиг уже запечён в маску, поэтому здесь его ОБНУЛЯЕМ ---
+shiftBeforeRound = compShiftState;   // запомним, что было до силуэта
+compShiftState   = 0;                // логическое состояние
+lastShiftPx      = 0;                // фактический px-сдвиг
+overlay.style.transform = 'translateY(0)'; // никаких дополнительных сдвигов
 
-  // композицию прячем
-  composition.style.visibility = 'hidden';
+silhouetteFill.style.background = currentInk;
+silhouetteFill.style.webkitMaskImage = `url(${maskURL})`;
+silhouetteFill.style.maskImage      = `url(${maskURL})`;
+silhouetteFill.classList.add('active');
 
-  // ВАЖНО: не трогаем флаг обводки — если была включена, остаётся включённой
-  await applySilhouetteStroke();
+// зум как раньше
+zoomBeforeRound = mainZoom;
+mainZoom = 1;
 
-  // лайв-обводку не включаем (она уже запекается при повторных снапах)
-  if (liveStrokeOn) { liveStrokeOn = false; applyLiveStroke(); }
+// переключаем режим
+isRounded = true;
+
+// подчистим трансформы у строк (они скрыты)
+if (line1) line1.style.transform = '';
+if (line2) line2.style.transform = '';
+baseLH1 = baseLH2 = null;
+
+// синхронизируем (теперь overlay получит translateY(0) и scale(1))
+applyCompositionShift();
+applyMainZoom();
+
+
+// вернуть прежнюю прозрачность силуэта
+silAlpha = Number.isFinite(prevAlpha) ? prevAlpha : 1;
+silhouetteFill.style.opacity = silAlpha.toFixed(2);
+
+// спрячем живую композицию
+composition.style.visibility = 'hidden';
+
+// исходные micro уже «запечены» — удалим из DOM
+removeMicro();
+
+// если была обводка/тень — пересоберём по новой маске
+await applySilhouetteStroke();
+if (innerShadow.classList.contains('active')) {
+  await applyInnerShadow();
+}
+
+if (liveStrokeOn) { liveStrokeOn = false; applyLiveStroke(); }
+if (btnUndo) btnUndo.hidden = false;
 
   // ...после того как включили overlay/силуэт...
   // композицию прячем
@@ -1370,6 +1398,21 @@ async function buildCurrentMaskURL(){
 function undoAll(){
   if (composition) composition.style.visibility = 'visible';
   resetRoundState({force:true});
+  
+// СБРОСИТЬ инлайновые line-height, чтобы база снова читалась из CSS (normal)
+if (line1) line1.style.lineHeight = '';
+if (line2) line2.style.lineHeight = '';
+// и пересчитать базу заново при следующем зуме
+baseLH1 = baseLH2 = null;
+
+  
+    // <— ДОБАВЬ ЭТО:
+  mainZoom = zoomBeforeRound;   // вернуть тот зум, что был до силуэта
+  applyMainZoom();
+  
+   // --- ДОБАВЬ ЭТО: вернуть сдвиг, который был до силуэта ---
+  compShiftState = shiftBeforeRound;
+  applyCompositionShift();
 
   liveStrokeOn = false;
   strokeOnSil  = false;
