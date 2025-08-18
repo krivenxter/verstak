@@ -55,6 +55,10 @@
         <button id="moveUp" class="secondary" aria-label="Вверх">▲</button>
         
 <button id="moveDown" class="secondary" aria-label="Вниз">▼</button>
+        
+        <button id="zoomOut" class="secondary" aria-label="Уменьшить">−</button>
+<button id="zoomIn"  class="secondary" aria-label="Увеличить">+</button>
+
 
         <button id="gradToggle" class="secondary">Градиент</button>
         
@@ -261,6 +265,43 @@
     </div>
   </div>
 </div>
+    
+    <!-- Модалка мелкого текста -->
+<div id="microModal" class="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="microTitle">
+    <div class="modal-head">
+      <div id="microTitle" class="modal-title">Мелкий текст</div>
+      <button id="microClose" class="icon-btn" type="button" aria-label="Закрыть">✕</button>
+    </div>
+
+    <div class="modal-body micro-grid">
+      <label>Текст
+        <input type="text" id="microInput" placeholder="шёпот под буквами">
+      </label>
+
+      <fieldset class="micro-positions" role="group" aria-label="Позиция">
+        <legend id="microPosLabel" class="caps-text">Позиция</legend>
+        <div class="micro-pos-buttons">
+          <button type="button" class="secondary micro-pos" data-pos="top-stage">Наверху</button>
+          <button type="button" class="secondary micro-pos" data-pos="bottom-stage">Снизу</button>
+          <button type="button" class="secondary micro-pos" data-pos="above-line1">Над текстом</button>
+          <button type="button" class="secondary micro-pos" data-pos="below-line2">Под текстом</button>
+        </div>
+      </fieldset>
+
+      <label>Размер (px)
+        <input type="range" id="microSize" min="10" max="36" value="14">
+      </label>
+    </div>
+
+    <div class="modal-foot">
+      <button id="microClear" class="secondary" type="button">Убрать</button>
+      <button id="microApply" type="button">Применить</button>
+      <button id="microDone" class="secondary" type="button">Готово</button>
+    </div>
+  </div>
+</div>
+
 
 
 <script src="script.js"></script>
