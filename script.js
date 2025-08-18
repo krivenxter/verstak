@@ -23,6 +23,16 @@ const FONT_POOL = [
 const SANS_POOL = [ 'Inter' ];
 
 // === ШОРТКАТЫ ===
+
+// --- Модалка мелкого текста ---
+const microModal   = document.getElementById('microModal');
+const microClose   = document.getElementById('microClose');
+const microDone    = document.getElementById('microDone');
+const microApply   = document.getElementById('microApply');
+const microClear   = document.getElementById('microClear');
+const microInput   = document.getElementById('microInput');
+const microSize    = document.getElementById('microSize');
+const microPosBtns = document.querySelectorAll('.micro-pos');
 const stage         = document.getElementById('stage');
 const overlay       = document.getElementById('overlay');
 const composition   = document.getElementById('composition');
@@ -94,12 +104,12 @@ const shadowOffsetXInp = document.getElementById('shadowOffsetX');
 const shadowOffsetYInp = document.getElementById('shadowOffsetY');
 
 let shadowParams = {
-  color: '#919191',
-  alpha: 0.35,
-  blur:  24,
-  inset: 12,
-  offsetX: 0,
-  offsetY: 0
+  color: '#B0B0B0',
+  alpha: 1,
+  blur:  10,
+  inset: 20,
+  offsetX: 10,
+  offsetY: -10,
 };
 
 // ===== Размер шрифта по ширине stage =====
@@ -184,8 +194,23 @@ const I18N = {
      credit_name: 'Олег Кривенко',
     questions: 'По вопросам сюда',
     micro_prompt_title: 'Мелкий текст (слова через пробел):',
-micro_prompt_default: 'шёпот под буквами',
+micro_prompt_default: 'твой клёвый текст',
     bg_random: 'Рандом фон',
+    shadow: 'Тень',
+    micro_title: 'Мелкий текст',
+micro_text: 'Текст',
+micro_position: 'Позиция',
+pos_top_stage: 'Наверху',
+pos_bottom_stage: 'Снизу',
+pos_above_line1: 'Над текстом',
+pos_below_line2: 'Под текстом',
+micro_size: 'Размер (px)',
+apply: 'Применить',
+remove: 'Убрать',
+// RU
+micro_text: 'Текст',
+micro_size: 'Размер (px)',
+
 
   },
   en: {
@@ -228,8 +253,22 @@ micro_prompt_default: 'шёпот под буквами',
     credit_name: 'Oleg Krivenko',
     questions: 'Contact & Troubleshooting',
     micro_prompt_title: 'Small text (space-separated words):',
-micro_prompt_default: 'whisper under letters',
+micro_prompt_default: 'your cool text',
     bg_random: 'Random BG',
+    shadow: 'Shadow',
+    micro_title: 'Small text',
+micro_text: 'Text',
+micro_position: 'Position',
+pos_top_stage: 'Top',
+pos_bottom_stage: 'Bottom',
+pos_above_line1: 'Above text',
+pos_below_line2: 'Below text',
+micro_size: 'Size (px)',
+apply: 'Apply',
+remove: 'Remove',
+
+
+
   }
 };
 
@@ -256,6 +295,7 @@ const I18N_MAP = [
 ['a','credit_name'],
   ['.who-1 a','questions'],
   ['#bgRandom','bg_random'],
+  ['#shadowToggle', 'shadow'],
 
   // Модалка градиента
   ['#gradTitle','grad_title'],
@@ -278,7 +318,74 @@ const I18N_MAP = [
   ['label[for="strokeColor"]','stroke_color'],
   ['label[for="strokeWidth"]','stroke_width'],
   ['label[for="strokeEnabled"]','stroke_enabled'],
+  ['#microTitle','micro_title'],
+['label[for="microInput"]','micro_text'],
+['#microPosLabel','micro_position'],
+['.micro-pos[data-pos="top-stage"]','pos_top_stage'],
+['.micro-pos[data-pos="bottom-stage"]','pos_bottom_stage'],
+['.micro-pos[data-pos="above-line1"]','pos_above_line1'],
+['.micro-pos[data-pos="below-line2"]','pos_below_line2'],
+['label[for="microSize"]','micro_size'],
+['#microApply','apply'],
+['#microClear','remove'],
+['#microDone','done'],
+  
+  
+
 ];
+
+// === ЗУМ ОСНОВНОЙ КОМПОЗИЦИИ ===
+let mainZoom = 1;                  // 1 = без зума
+let lastShiftPx = 0;               // текущий сдвиг композиции в px (для overlay/экспорта)
+const ZOOM_MIN = 0.6, ZOOM_MAX = 1.8, ZOOM_STEP = 0.1;
+
+const btnZoomIn  = document.getElementById('zoomIn');
+const btnZoomOut = document.getElementById('zoomOut');
+
+function clampZoom(z){ return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); }
+
+// применяем зум: до силуэта — масштабируем ТОЛЬКО line1/line2;
+// после силуэта — масштабируем overlay целиком
+// ЗУМ: до силуэта — регулируем line-height у строк; после силуэта — scale overlay
+let baseLH1 = null, baseLH2 = null;
+
+function readBaseLH(el){
+  if (!el) return 1;
+  const cs = getComputedStyle(el);
+  const lh = parseFloat(cs.lineHeight);
+  const fs = parseFloat(cs.fontSize);
+  // если пришло 'normal' → NaN → берём 1.2 как дефолт
+  const ratio = (!isNaN(lh) && !isNaN(fs) && fs > 0) ? (lh / fs) : 1.2;
+  return clamp(ratio, 0.6, 2.4);
+}
+
+// ЗУМ: до силуэта — scale строк + line-height; после силуэта — scale overlay
+function applyMainZoom(){
+  if (isRounded){
+    overlay.style.transform = `translateY(${lastShiftPx}px) scale(${mainZoom})`;
+  } else {
+    // лениво считываем «базовый» line-height в коэффициентах (em/без единиц)
+    if (baseLH1 === null) baseLH1 = readBaseLH(line1);
+    if (baseLH2 === null) baseLH2 = readBaseLH(line2);
+
+    const lh1 = (baseLH1 || 1) * mainZoom;
+    const lh2 = (baseLH2 || 1) * mainZoom;
+
+    if (line1){
+      line1.style.transform   = `scale(${mainZoom})`;
+      line1.style.lineHeight  = lh1;      // unitless множитель
+      line1.style.transformOrigin = 'center center';
+    }
+    if (line2){
+      line2.style.transform   = `scale(${mainZoom})`;
+      line2.style.lineHeight  = lh2;
+      line2.style.transformOrigin = 'center center';
+    }
+  }
+}
+
+
+
 
 // Проставление плейсхолдера через атрибут
 function setPlaceholder(el, text){
@@ -303,6 +410,9 @@ const I18N_LABELS_BY_INPUT = {
   strokeColor: 'stroke_color',
   strokeWidth: 'stroke_width',
   strokeEnabled: 'stroke_enabled',
+  
+   microInput: 'micro_text',
+  microSize:  'micro_size',
 };
 
 // аккуратно меняем текстовый узел у <label>, который оборачивает input
@@ -360,6 +470,8 @@ for (const [inputId, key] of Object.entries(I18N_LABELS_BY_INPUT)){
   setWrappingLabelText(inputId, t[key]);
 }
 
+    const mi = document.getElementById('microInput');
+if (mi) mi.placeholder = I18N[lang]?.micro_prompt_default || mi.placeholder;
 
   // Подсветка активной кнопки языка
  document.querySelectorAll('.lang-btn').forEach(b=>{
@@ -368,6 +480,9 @@ for (const [inputId, key] of Object.entries(I18N_LABELS_BY_INPUT)){
  // чтобы <html lang="..."> всегда соответствовал выбранному языку
 document.documentElement.setAttribute('lang', lang);
   document.documentElement.classList.add('i18n-ready');
+  
+
+
 }
 
 // Обработчики
@@ -502,11 +617,60 @@ function resetRoundState({force=false} = {}) {
   if (btnUndo) btnUndo.hidden = true;
 }
 
-// === ГЕНЕРАЦИЯ КОМПОЗИЦИИ ===
+// --- Состояние микротекста ---
+let microState = {
+  text: '',
+  pos: 'top-stage',   // 'top-stage' | 'bottom-stage' | 'above-line1' | 'below-line2'
+  sizePx: 14
+};
+
+// Удаляем все micro-слои
 function removeMicro(){
-  const m = composition?.querySelector('.micro-row');
-  if (m) m.remove();
+  composition?.querySelector('.micro-row')?.remove();
+  stage?.querySelectorAll('.micro-floating').forEach(n => n.remove());
 }
+
+// Создаём micro-row из слов
+function makeMicroRow(words, sizePx){
+  const row = document.createElement('div');
+  row.className = 'micro-row';
+  row.style.setProperty('--micro-fs', `${sizePx}px`);
+  row.style.fontFamily = `'${sample(SANS_POOL)}', system-ui, sans-serif`;
+  words.forEach(w=>{
+    const chip = document.createElement('span');
+    chip.className = 'micro-chip';
+    chip.textContent = w;
+    row.appendChild(chip);
+  });
+  return row;
+}
+
+// Отрисовать согласно microState
+function renderMicro(){
+  removeMicro();
+  const words = (microState.text || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return;
+
+  if (microState.pos === 'top-stage' || microState.pos === 'bottom-stage'){
+    const wrap = document.createElement('div');
+    wrap.className = `micro-floating ${microState.pos === 'top-stage' ? 'top' : 'bottom'}`;
+    wrap.style.color = currentInk || (stage.classList.contains('light') ? '#fff' : '#000');
+    wrap.appendChild(makeMicroRow(words, microState.sizePx));
+    stage.appendChild(wrap);
+  } else {
+    const row = makeMicroRow(words, microState.sizePx);
+    if (microState.pos === 'above-line1'){
+      composition.insertBefore(row, line1);
+    } else {
+      composition.insertBefore(row, line2.nextSibling);
+    }
+  }
+
+  // не ломаем силуэт
+  resetRoundState();
+  applyCompositionShift();
+}
+
 
 function generate(){
   resetRoundState({force:true});
@@ -550,11 +714,15 @@ const [w1, w2] = customLines ?? sample(pool);
 
   applyCompositionShift();
   updateFontSize();
+  applyMainZoom();
+
 
   currentInk = stage?.classList.contains('light') ? '#ffffff' : '#000000';
   if (composition) composition.style.color = currentInk;
 
   if (btnUndo) btnUndo.hidden = true;
+  
+  
 }
 
 // === ОБВОДКА (ЖИВАЯ) ДО СИЛУЭТА ===
@@ -714,10 +882,6 @@ async function applyInnerShadow(){
   shadowParams.offsetX = Math.round(+shadowOffsetXInp.value || 0);
   shadowParams.offsetY = Math.round(+shadowOffsetYInp.value || 0);
   
-  [shadowColorInp, shadowAlphaInp, shadowBlurInp, shadowInsetInp,
- shadowOffsetXInp, shadowOffsetYInp].forEach(inp=>{
-  inp?.addEventListener('input', applyInnerShadow);
-});
 
   const baseMaskURL = isRounded && maskURL ? maskURL : await buildCurrentMaskURL();
   const pngURL = await buildInnerShadowPNG(baseMaskURL, shadowParams);
@@ -727,7 +891,13 @@ async function applyInnerShadow(){
     innerShadow.classList.add('active');
     overlay.hidden = false;
     overlay.style.background = 'transparent';
-    overlay.style.transform = composition?.style.transform || '';
+overlay.style.transform = `translateY(${lastShiftPx}px) scale(${mainZoom})`;
+    
+    // один раз после получения ссылок на инпуты тени:
+[shadowColorInp, shadowAlphaInp, shadowBlurInp, shadowInsetInp, shadowOffsetXInp, shadowOffsetYInp]
+  .forEach(inp => inp?.addEventListener('input', applyInnerShadow));
+
+
   } else {
     innerShadow.classList.remove('active');
     innerShadow.style.backgroundImage = '';
@@ -889,12 +1059,21 @@ function applyGradientLive(){
   applyGrain();
 }
 
+let gradWasOpened = false;
+
 function openGrad(){
   if (!gradModal) return;
   gradModal.hidden = false;
+
+  if (!gradWasOpened) {
+    randomGradient();         // только при первом открытии
+    gradWasOpened = true;
+  } else {
+    applyGradientLive();      // дальше просто показываем текущее
+  }
+
   if (gradNoise)     gradNoise.value     = Math.round(noiseIntensity * 100);
   if (gradNoiseSize) gradNoiseSize.value = noiseSizePx;
-  applyGradientLive();
 }
 
 function closeGrad(){
@@ -960,7 +1139,9 @@ async function roundCorners() {
   const prevAlpha    = Number.isFinite(silAlpha)
     ? silAlpha
     : (parseFloat(getComputedStyle(silhouetteFill).opacity) || 1);
-  const ty           = (getTranslateY(overlay) || 0) * SCALE;
+const ty = lastShiftPx * SCALE;
+
+
 
   // 1) Снапим сцену БЕЗ overlay (html2canvas не любит css-mask)
   const snap = stage.cloneNode(true);
@@ -1090,7 +1271,11 @@ async function roundCorners() {
   silhouetteFill.style.webkitMaskImage = `url(${maskURL})`;
   silhouetteFill.style.maskImage      = `url(${maskURL})`;
   silhouetteFill.classList.add('active');
-
+  
+isRounded = true; // <-- СНАЧАЛА включаем режим силуэта
+overlay.style.transform = `translateY(${lastShiftPx}px) scale(${mainZoom})`; // сразу корректный вид
+applyCompositionShift(); // синхронизируем текущий сдвиг
+applyMainZoom(); // теперь ветка для overlay сработает
   // возвращаем прежнюю фактическую альфу силуэта (важно для «только обводка»)
   if (Number.isFinite(prevAlpha)) {
     silAlpha = prevAlpha;
@@ -1204,6 +1389,8 @@ function undoAll(){
   if (btnUndo) btnUndo.hidden = true;
   
   clearInnerShadow();
+  applyMainZoom();
+
 
 }
 
@@ -1215,15 +1402,19 @@ function applyCompositionShift() {
   const px = Math.round(compH * SHIFT_FACTOR);
   const offset = compShiftState === 1 ? -px : compShiftState === -1 ? px : 0;
 
+  lastShiftPx = offset; // ← запомним актуальный сдвиг
+
   const t = `translateY(${offset}px)`;
   composition.style.transform = t;
 
   if (isRounded) {
-    overlay.style.transform = t;
+    // после силуэта — дописываем scale(mainZoom) к overlay
+    overlay.style.transform = `${t} scale(${mainZoom})`;
     silhouetteFill.style.transform = '';
     if (silhouetteStroke) silhouetteStroke.style.transform = '';
   }
 }
+
 
 // хелпер: вытащить translateY(px) из transform
 function getTranslateY(el){
@@ -1315,7 +1506,8 @@ async function downloadPng(){
   octx.drawImage(baseCanvas, 0, 0);
 
   // вычислим сдвиг силуэта (px в рендер-скейле)
-  const ty = (getTranslateY(overlay) || 0) * SCALE;
+ const ty = lastShiftPx * SCALE;
+
 
   // 3) ОБВОДКА вокруг силуэта (если включена)
  // 3) ОБВОДКА вокруг силуэта (если включена)
@@ -1506,53 +1698,41 @@ function makeMicroRow(words){
   return row;
 }
 
+// Открыть модалку
 btnMicro?.addEventListener('click', () => {
-  const t = I18N[currentLang];
-
-  // 1) всегда убираем текущий микротекст при клике
-  removeMicro();
-
-  // 2) спрашиваем новый — если пусто или Cancel, выходим (т.е. просто стерли)
-  const txt = prompt(t.micro_prompt_title, t.micro_prompt_default);
-  if (!txt) return;
-
-  const words = txt.trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return; // тоже ничего не добавляем
-
-  // --- дальше всё как раньше: выбираем режим и добавляем ---
-  const modes = ['relative', 'top', 'bottom'];
-  const mode = modes[rand(0, modes.length - 1)];
-
-  const makeMicroRow = (words) => {
-    const row = document.createElement('div');
-    row.className = 'micro-row';
-    row.dataset.size = ['sm','md','lg'][rand(0,2)];
-    row.style.fontFamily = `'${sample(SANS_POOL)}', system-ui, sans-serif`;
-    for (const w of words){
-      const chip = document.createElement('span');
-      chip.className = 'micro-chip';
-      chip.textContent = w;
-      row.appendChild(chip);
-    }
-    return row;
-  };
-
-  if (mode === 'relative') {
-    const row = makeMicroRow(words);
-    if (words.length === 1) row.style.justifyContent = 'center';
-    if (Math.random() < 0.5) composition.insertBefore(row, line1);
-    else composition.insertBefore(row, line2.nextSibling);
-  } else {
-    const wrap = document.createElement('div');
-    wrap.className = `micro-floating ${mode}`;
-    wrap.style.color = currentInk || (stage.classList.contains('light') ? '#fff' : '#000');
-    wrap.appendChild(makeMicroRow(words));
-    stage.appendChild(wrap);
-  }
-
-  resetRoundState();   // не ломаем «Силуэт»
-  applyCompositionShift();
+  // подставим текущее
+  microInput.value = microState.text || (I18N[currentLang]?.micro_prompt_default ?? '');
+  microSize.value  = microState.sizePx;
+  microPosBtns.forEach(b => b.classList.toggle('active', b.dataset.pos === microState.pos));
+  microModal.hidden = false;
 });
+
+// Закрыть модалку
+microClose?.addEventListener('click', ()=> microModal.hidden = true);
+microDone?.addEventListener('click',  ()=> microModal.hidden = true);
+
+// Выбор позиции
+microPosBtns.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    microPosBtns.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    microState.pos = btn.dataset.pos;
+  });
+});
+
+// Применить
+microApply?.addEventListener('click', ()=>{
+  microState.text = (microInput.value || '').trim();
+  microState.sizePx = Math.max(10, Math.min(36, +microSize.value || 14));
+  renderMicro();
+});
+
+// Убрать
+microClear?.addEventListener('click', ()=>{
+  microState.text = '';
+  removeMicro();
+});
+
 
 
 
@@ -1650,6 +1830,14 @@ strokeEnabledInput?.addEventListener('change', async ()=>{
 });
 
 
+btnZoomIn?.addEventListener('click', ()=>{
+  mainZoom = clampZoom( +(mainZoom + ZOOM_STEP).toFixed(2) );
+  applyMainZoom();
+});
+btnZoomOut?.addEventListener('click', ()=>{
+  mainZoom = clampZoom( +(mainZoom - ZOOM_STEP).toFixed(2) );
+  applyMainZoom();
+});
 
 
 
@@ -1673,22 +1861,42 @@ async function randomPinterestBg(){
 
 btnBgPin?.addEventListener('click', randomPinterestBg);
 
+let strokeWasRandomized = false;
 
 // одна кнопка «Обводка» — и до, и после силуэта
 strokeToggle?.addEventListener('click', async ()=>{
+  const randomHex = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+
   if (!isRounded){
-    // Живая обводка до силуэта
+    // До силуэта: «живая» обводка
+    const turningOn = !liveStrokeOn;
+    if (turningOn && !strokeWasRandomized){
+      strokeColor   = randomHex();
+      strokeWidthPx = Math.max(1, rand(6, 24));
+      strokeWasRandomized = true; // больше не рандомим в этой сессии
+    }
     liveStrokeOn = !liveStrokeOn;
     applyLiveStroke();
   } else {
-    // Обводка вокруг силуэта
+    // После силуэта: кольцевая обводка
+    const turningOn = !strokeOnSil;
+    if (turningOn && !strokeWasRandomized){
+      strokeColor   = randomHex();
+      strokeWidthPx = Math.max(1, rand(6, 24));
+      strokeWasRandomized = true; // больше не рандомим в этой сессии
+    }
     strokeOnSil = !strokeOnSil;
-    // гарантируем, что overlay виден
     overlay.hidden = false;
-    // форсим пересчёт кольца каждый раз (можно кэшировать при желании)
     await applySilhouetteStroke();
   }
+
+  // синхроним значения, если модалка открыта
+  if (strokeColorInput)   strokeColorInput.value   = strokeColor;
+  if (strokeWidthInput)   strokeWidthInput.value   = strokeWidthPx;
+  if (strokeEnabledInput) strokeEnabledInput.checked = !!strokeOnSil;
 });
+
+
 
 const btnBgRandom = document.getElementById('bgRandom');
 
