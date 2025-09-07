@@ -1,5 +1,6 @@
+
 // === ДАННЫЕ ===
-const PHRASES = [
+const PHRASES_RU = [
   ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
   ["диска","царапина"],["плеера","шум"],["кассеты","треск"],
   ["экрана","блик"],["обоев","градиент"],["баннера","пиксель"],
@@ -8,6 +9,18 @@ const PHRASES = [
   ["принтера","запах"],["сайта","фон"],["курсора","след"],
   ["обоев","узор"],["кассетника","скрип"],
 ];
+
+const PHRASES_EN = [
+  ["monitor","glare"],["photoshop","shadow"],["keyboard","dust"],
+  ["disc","scratch"],["player","noise"],["cassette","creak"],
+  ["screen","gloss"],["wallpaper","gradient"],["banner","pixel"],
+  ["jeans","flare"],["dad’s","milk"],["logo","shine"],["pager","signal"],
+  ["drive","knock"],["cover","sparkle"],["modem","beep"],
+  ["printer","smell"],["site","background"],["cursor","trail"],
+  ["wallpaper","pattern"],["tape","squeak"],
+];
+
+const PHRASES = PHRASES_RU; // Alias for backwards compatibility if needed
 
 const FONT_POOL = [
   'Ruslan Display','Stalinist One','Yeseva One','Kelly Slab','Unbounded',
@@ -72,9 +85,9 @@ const colorClose     = document.getElementById('colorClose');
 const colorDone      = document.getElementById('colorDone');
 
 const strokeToggle        = document.getElementById('strokeToggle');
-const strokeColorInput    = document.getElementById('strokeColor');     // опционально (если есть в модалке)
-const strokeWidthInput    = document.getElementById('strokeWidth');     // опционально
-const strokeEnabledInput  = document.getElementById('strokeEnabled');   // опционально
+const strokeColorInput    = document.getElementById('strokeColor');
+const strokeWidthInput    = document.getElementById('strokeWidth');
+const strokeEnabledInput  = document.getElementById('strokeEnabled');
 
 // Градиент-модалка
 const gradModal   = document.getElementById('gradModal');
@@ -103,6 +116,8 @@ const innerShadow   = document.getElementById('innerShadow');
 const shadowOffsetXInp = document.getElementById('shadowOffsetX');
 const shadowOffsetYInp = document.getElementById('shadowOffsetY');
 
+let isFirstShadowClick = true;
+
 let shadowParams = {
   color: '#B0B0B0',
   alpha: 1,
@@ -121,24 +136,24 @@ let silAlpha = 1; // фактическая непрозрачность сил�
 
 let currentInk   = '#111111';
 let currentBgUrl = '';
-let currentBgBlobUrl = ''; 
+let currentBgBlobUrl = '';
 
 // ===== Состояния силуэта/обводки/шума =====
 let isRounded       = false;
 let maskURL         = '';
-let liveStrokeOn    = false;      // обводка на «живой» композиции до силуэта
-let strokeOnSil     = false;      // обводка вокруг силуэта после «Силуэта»
+let liveStrokeOn    = false;
+let strokeOnSil     = false;
 let strokeColor     = '#00ff88';
 let strokeWidthPx   = 10;
-let strokeEnabled   = false;      // если используешь чекбокс в модалке
-let strokeMaskURL   = '';         // кэш кольцевой маски
+let strokeEnabled   = false;
+let strokeMaskURL   = '';
 
-let noiseURL        = '';         // dataURL тайла шума
-let noiseIntensity  = 0;          // 0..1
-let noiseSizePx     = 480;        // ИЗНАЧАЛЬНЫЙ крупный тайл (px)
+let noiseURL        = '';
+let noiseIntensity  = 0;
+let noiseSizePx     = 480;
 
 // ===== Сдвиг композиции =====
-let compShiftState = 0;           // -1 = вниз, 0 = центр, 1 = вверх
+let compShiftState = 0;
 const SHIFT_FACTOR = 0.35;
 
 // === УТИЛЫ ===
@@ -147,6 +162,7 @@ const sample  = (arr) => arr[rand(0, arr.length - 1)];
 const shuffle = (arr) => arr.map(v=>[Math.random(), v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
 const pickFonts = () => shuffle([...FONT_POOL]).slice(0, rand(3,6));
 const clamp  = (v,min,max)=>Math.max(min,Math.min(max,v));
+const randomHex = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
 
 
 // ---- i18n ----
@@ -197,6 +213,7 @@ const I18N = {
 micro_prompt_default: 'твой клёвый текст',
     bg_random: 'Рандом фон',
     shadow: 'Тень',
+    glitch: 'Глитч',
     micro_title: 'Мелкий текст',
 micro_text: 'Текст',
 micro_position: 'Позиция',
@@ -207,11 +224,8 @@ pos_below_line2: 'Под текстом',
 micro_size: 'Размер (px)',
 apply: 'Применить',
 remove: 'Убрать',
-// RU
-micro_text: 'Текст',
-micro_size: 'Размер (px)',
-
-
+    cringe_bar: 'Кринж: {current}/{max}',
+    ultimate: 'Ультануть',
   },
   en: {
     title: 'Typo Composition Generator',
@@ -256,6 +270,7 @@ micro_size: 'Размер (px)',
 micro_prompt_default: 'your cool text',
     bg_random: 'Random BG',
     shadow: 'Shadow',
+    glitch: 'Glitch',
     micro_title: 'Small text',
 micro_text: 'Text',
 micro_position: 'Position',
@@ -266,13 +281,11 @@ pos_below_line2: 'Below text',
 micro_size: 'Size (px)',
 apply: 'Apply',
 remove: 'Remove',
-
-
-
+    cringe_bar: 'Cringe: {current}/{max}',
+    ultimate: 'Ultimate',
   }
 };
 
-// Какие элементы перетекстовывать (селектор → ключ)
 const I18N_MAP = [
   ['.header h1','title'],
   ['#btn','generate'],
@@ -291,13 +304,11 @@ const I18N_MAP = [
   ['#round','silhouette'],
   ['#undoAll','undo'],
   ['#download','download'],
-['.who-3','credit_label'],  // лейбл слева от ссылки
+['.who-3','credit_label'],
 ['a','credit_name'],
   ['.who-1 a','questions'],
-  ['#bgRandom','bg_random'],
+  ['#bgRandom > span','bg_random'],
   ['#shadowToggle', 'shadow'],
-
-  // Модалка градиента
   ['#gradTitle','grad_title'],
   ['label[for="gradA"]','grad_c1'],
   ['label[for="gradB"]','grad_c2'],
@@ -310,8 +321,6 @@ const I18N_MAP = [
   ['#gradRandom','grad_random'],
   ['#gradClear','grad_clear'],
   ['#gradDone','done'],
-
-  // Модалка цвета/обводки
   ['#colorTitle','color_title'],
   ['label[for="colorPick"]','color_fill'],
   ['label[for="colorAlpha"]','color_alpha'],
@@ -329,17 +338,15 @@ const I18N_MAP = [
 ['#microApply','apply'],
 ['#microClear','remove'],
 ['#microDone','done'],
-  
-  
-
+['#ultimateBtn > span', 'ultimate']
 ];
 
 // === ЗУМ ОСНОВНОЙ КОМПОЗИЦИИ ===
-let mainZoom = 1;    
-let zoomBeforeRound = 1;           // <— НОВОЕ: зум, который был ДО силуэта// 1 = без зума
-let lastShiftPx = 0;               // текущий сдвиг композиции в px (для overlay/экспорта)
+let mainZoom = 1;
+let zoomBeforeRound = 1;
+let lastShiftPx = 0;
 
-let shiftBeforeRound = 0;   // <— НОВОЕ: сдвиг (в шагах) ДО силуэта
+let shiftBeforeRound = 0;
 const ZOOM_MIN = 0.6, ZOOM_MAX = 1.8, ZOOM_STEP = 0.1;
 
 const btnZoomIn  = document.getElementById('zoomIn');
@@ -347,9 +354,6 @@ const btnZoomOut = document.getElementById('zoomOut');
 
 function clampZoom(z){ return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z)); }
 
-// применяем зум: до силуэта — масштабируем ТОЛЬКО line1/line2;
-// после силуэта — масштабируем overlay целиком
-// ЗУМ: до силуэта — регулируем line-height у строк; после силуэта — scale overlay
 let baseLH1 = null, baseLH2 = null;
 
 function readBaseLH(el){
@@ -357,17 +361,14 @@ function readBaseLH(el){
   const cs = getComputedStyle(el);
   const lh = parseFloat(cs.lineHeight);
   const fs = parseFloat(cs.fontSize);
-  // если пришло 'normal' → NaN → берём 1.2 как дефолт
   const ratio = (!isNaN(lh) && !isNaN(fs) && fs > 0) ? (lh / fs) : 1.2;
   return clamp(ratio, 0.6, 2.4);
 }
 
-// ЗУМ: до силуэта — scale строк + line-height; после силуэта — scale overlay
 function applyMainZoom(){
   if (isRounded){
     overlay.style.transform = `translateY(${lastShiftPx}px) scale(${mainZoom})`;
   } else {
-    // лениво считываем «базовый» line-height в коэффициентах (em/без единиц)
     if (baseLH1 === null) baseLH1 = readBaseLH(line1);
     if (baseLH2 === null) baseLH2 = readBaseLH(line2);
 
@@ -376,7 +377,7 @@ function applyMainZoom(){
 
     if (line1){
       line1.style.transform   = `scale(${mainZoom})`;
-      line1.style.lineHeight  = lh1;      // unitless множитель
+      line1.style.lineHeight  = lh1;
       line1.style.transformOrigin = 'center center';
     }
     if (line2){
@@ -387,17 +388,11 @@ function applyMainZoom(){
   }
 }
 
-
-
-
-// Проставление плейсхолдера через атрибут
 function setPlaceholder(el, text){
   if (el) el.setAttribute('placeholder', text);
 }
 
-// --- Маппинг "input id" -> ключ словаря ---
 const I18N_LABELS_BY_INPUT = {
-  // Градиент
   gradA: 'grad_c1',
   gradB: 'grad_c2',
   gradC: 'grad_c3',
@@ -406,36 +401,29 @@ const I18N_LABELS_BY_INPUT = {
   gradBias2: 'grad_bias2',
   gradNoise: 'grad_noise',
   gradNoiseSize: 'grad_noise_size',
-
-  // Модалка цвета/обводки
   colorPick: 'color_fill',
   colorAlpha: 'color_alpha',
   strokeColor: 'stroke_color',
   strokeWidth: 'stroke_width',
   strokeEnabled: 'stroke_enabled',
-  
    microInput: 'micro_text',
   microSize:  'micro_size',
 };
 
-// аккуратно меняем текстовый узел у <label>, который оборачивает input
 function setWrappingLabelText(inputId, text){
   const input = document.getElementById(inputId);
   if (!input) return;
   const label = input.closest('label');
   if (!label) return;
 
-  // ищем первый текстовый узел и заменяем его
   for (const node of label.childNodes){
     if (node.nodeType === Node.TEXT_NODE){
       node.nodeValue = text + ' ';
       return;
     }
   }
-  // если текста не нашли — просто prepend
   label.prepend(document.createTextNode(text + ' '));
 }
-
 
 function applyLang(lang){
   currentLang = lang;
@@ -449,12 +437,9 @@ function applyLang(lang){
     } else {
       const el = document.querySelector(sel);
       if (!el) return;
-      // Кнопки с иконками могут иметь вложенные SVG — безопаснее менять textContent,
-      // но если внутри иконка, берем первый текстовый узел:
-      if (el.childElementCount === 0) {
+      if (el.childElementCount === 0 || el.tagName === 'SPAN') {
         el.textContent = t[key];
       } else {
-        // если есть иконки/спаны: меняем только первый текстовый узел
         let changed = false;
         for (const node of el.childNodes){
           if (node.nodeType === Node.TEXT_NODE){
@@ -467,8 +452,7 @@ function applyLang(lang){
       }
     }
   });
-  
-  // Проставляем тексты для <label>, которые оборачивают inputs
+
 for (const [inputId, key] of Object.entries(I18N_LABELS_BY_INPUT)){
   setWrappingLabelText(inputId, t[key]);
 }
@@ -476,26 +460,21 @@ for (const [inputId, key] of Object.entries(I18N_LABELS_BY_INPUT)){
     const mi = document.getElementById('microInput');
 if (mi) mi.placeholder = I18N[lang]?.micro_prompt_default || mi.placeholder;
 
-  // Подсветка активной кнопки языка
  document.querySelectorAll('.lang-btn').forEach(b=>{
     b.classList.toggle('active', b.dataset.lang === lang);
   });
- // чтобы <html lang="..."> всегда соответствовал выбранному языку
 document.documentElement.setAttribute('lang', lang);
   document.documentElement.classList.add('i18n-ready');
-  
-
-
+  updateCringeUI();
 }
 
-// Обработчики
 document.addEventListener('click', (e)=>{
   const btn = e.target.closest('.lang-btn');
   if (!btn) return;
   applyLang(btn.dataset.lang);
 });
 
-applyLang(currentLang);
+
 
 function mixedCase(word){
   return Array.from(word).map(ch =>
@@ -538,14 +517,6 @@ function updateFontSize() {
   if (line2) line2.style.fontSize = size + 'px';
 }
 
-// считать при старте, после генерации и при изменении размеров stage
-if (stage){
-  const ro = new ResizeObserver(() => requestAnimationFrame(updateFontSize));
-  ro.observe(stage);
-}
-document.fonts?.ready?.then(updateFontSize);
-
-// ===== ВСПОМОГАТЕЛЬНОЕ ДЛЯ ЭКСПОРТА =====
 function loadImage(src){
   return new Promise((resolve, reject)=>{
     const img = new Image();
@@ -580,7 +551,6 @@ function paintGradient(ctx, w, h, gradientStr){
   ctx.fillRect(0,0,w,h);
 }
 
-// === СИЛУЭТ: СБРОС ===
 function clearSilhouetteFill(){
   silhouetteFill?.classList.remove('active');
   if (silhouetteFill){
@@ -620,20 +590,17 @@ function resetRoundState({force=false} = {}) {
   if (btnUndo) btnUndo.hidden = true;
 }
 
-// --- Состояние микротекста ---
 let microState = {
   text: '',
-  pos: 'top-stage',   // 'top-stage' | 'bottom-stage' | 'above-line1' | 'below-line2'
+  pos: 'top-stage',
   sizePx: 14
 };
 
-// Удаляем все micro-слои
 function removeMicro(){
   composition?.querySelector('.micro-row')?.remove();
   stage?.querySelectorAll('.micro-floating').forEach(n => n.remove());
 }
 
-// Создаём micro-row из слов
 function makeMicroRow(words, sizePx){
   const row = document.createElement('div');
   row.className = 'micro-row';
@@ -648,7 +615,6 @@ function makeMicroRow(words, sizePx){
   return row;
 }
 
-// Отрисовать согласно microState
 function renderMicro(){
   removeMicro();
   const words = (microState.text || '').trim().split(/\s+/).filter(Boolean);
@@ -669,7 +635,6 @@ function renderMicro(){
     }
   }
 
-  // не ломаем силуэт
   resetRoundState();
   applyCompositionShift();
 }
@@ -679,27 +644,6 @@ function generate(){
   resetRoundState({force:true});
   removeMicro();
   stage?.querySelectorAll('.ch.outlined').forEach(n => n.classList.remove('outlined'));
-  
-  const PHRASES_RU = [
-  ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
-  ["диска","царапина"],["плеера","шум"],["кассеты","треск"],
-  ["экрана","блик"],["обоев","градиент"],["баннера","пиксель"],
-  ["джинсов","клёш"],["папино","молоко"],["логотипа","отблеск"],["пейджера","сигнал"],
-  ["дисковода","стук"],["обложки","блеск"],["модема","писк"],
-  ["принтера","запах"],["сайта","фон"],["курсора","след"],
-  ["обоев","узор"],["кассетника","скрип"],
-];
-
-const PHRASES_EN = [
-  ["monitor","glare"],["photoshop","shadow"],["keyboard","dust"],
-  ["disc","scratch"],["player","noise"],["cassette","creak"],
-  ["screen","gloss"],["wallpaper","gradient"],["banner","pixel"],
-  ["jeans","flare"],["dad’s","milk"],["logo","shine"],["pager","signal"],
-  ["drive","knock"],["cover","sparkle"],["modem","beep"],
-  ["printer","smell"],["site","background"],["cursor","trail"],
-  ["wallpaper","pattern"],["tape","squeak"],
-];
-
 
   const customLines = getCustomLines();
  const pool = currentLang === 'en' ? PHRASES_EN : PHRASES_RU;
@@ -719,16 +663,12 @@ const [w1, w2] = customLines ?? sample(pool);
   updateFontSize();
   applyMainZoom();
 
-
   currentInk = stage?.classList.contains('light') ? '#ffffff' : '#000000';
   if (composition) composition.style.color = currentInk;
 
   if (btnUndo) btnUndo.hidden = true;
-  
-  
 }
 
-// === ОБВОДКА (ЖИВАЯ) ДО СИЛУЭТА ===
 function applyLiveStroke(){
   if (!composition) return;
   if (liveStrokeOn){
@@ -742,9 +682,6 @@ function applyLiveStroke(){
   }
 }
 
-
-
-// === ПОСТРОЕНИЕ КОЛЬЦЕВОЙ МАСКИ (для обводки вокруг силуэта) ===
 async function buildOuterStrokeMask(baseMaskURL, growPx){
   if (!baseMaskURL || growPx <= 0) return '';
   const srcImg = await loadImage(baseMaskURL);
@@ -753,22 +690,15 @@ async function buildOuterStrokeMask(baseMaskURL, growPx){
   const c   = document.createElement('canvas'); c.width = w; c.height = h;
   const ctx = c.getContext('2d');
 
-  // 1) раскладываем исходную маску (бинарная альфа)
   const src = document.createElement('canvas'); src.width = w; src.height = h;
   const sctx = src.getContext('2d');
   sctx.drawImage(srcImg, 0, 0, w, h);
 
-  // 2) "дилатация" без blur: многократные смещения
-  // шаг берём помельче, чтобы край был ровный
-  const r = Math.max(1, Math.round(growPx * 1)); // чуть толще и мягче
-
-  const step = Math.max(1, Math.round(r / 3)); // чем больше r, тем больше смещений
+  const r = Math.max(1, Math.round(growPx * 1));
+  const step = Math.max(1, Math.round(r / 3));
   ctx.clearRect(0,0,w,h);
-
-  // центр
   ctx.drawImage(src, 0, 0);
 
-  // 8 направлений + диагонали
   for (let dy = -r; dy <= r; dy += step){
     for (let dx = -r; dx <= r; dx += step){
       if (dx === 0 && dy === 0) continue;
@@ -776,7 +706,6 @@ async function buildOuterStrokeMask(baseMaskURL, growPx){
     }
   }
 
-  // 3) бинаризуем (альфу -> 0/255)
   const imgData = ctx.getImageData(0,0,w,h);
   const a = imgData.data;
   for (let i=0;i<a.length;i+=4){
@@ -785,14 +714,12 @@ async function buildOuterStrokeMask(baseMaskURL, growPx){
   }
   ctx.putImageData(imgData,0,0);
 
-  // 4) вычитаем исходник -> получаем кольцо
   ctx.globalCompositeOperation = 'destination-out';
   ctx.drawImage(src, 0, 0);
   ctx.globalCompositeOperation = 'source-over';
 
   return c.toDataURL('image/png');
 }
-
 
 async function erodeMaskURL(maskURL, shrinkPx){
   if (!maskURL || shrinkPx <= 0) return maskURL;
@@ -803,7 +730,6 @@ async function erodeMaskURL(maskURL, shrinkPx){
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const ctx = c.getContext('2d');
 
-  // стартуем с белого прямоугольника и пересекаем его со сдвигами маски — получится "эрозия"
   ctx.fillStyle = '#fff';
   ctx.fillRect(0,0,w,h);
   ctx.globalCompositeOperation = 'destination-in';
@@ -829,7 +755,6 @@ async function buildInnerShadowPNG(maskURL, {color, alpha, blur, inset, offsetX=
   const eroImg = await loadImage(erodedURL);
   const w = srcImg.width, h = srcImg.height;
 
-  // строим внутреннее «кольцо»: маска - эрозия
   const ring = document.createElement('canvas'); ring.width = w; ring.height = h;
   const rctx = ring.getContext('2d');
   rctx.drawImage(srcImg, 0, 0);
@@ -837,7 +762,6 @@ async function buildInnerShadowPNG(maskURL, {color, alpha, blur, inset, offsetX=
   rctx.drawImage(eroImg, 0, 0);
   rctx.globalCompositeOperation = 'source-over';
 
-  // красим картинку и маскируем кольцом со сдвигом
   const out = document.createElement('canvas'); out.width = w; out.height = h;
   const octx = out.getContext('2d');
 
@@ -846,7 +770,6 @@ async function buildInnerShadowPNG(maskURL, {color, alpha, blur, inset, offsetX=
 
   octx.globalCompositeOperation = 'destination-in';
   octx.filter = blur > 0 ? `blur(${blur}px)` : 'none';
-  // сдвиг тени
   octx.drawImage(ring, offsetX, offsetY);
   octx.filter = 'none';
   octx.globalCompositeOperation = 'source-over';
@@ -858,14 +781,12 @@ async function buildInnerShadowPNG(maskURL, {color, alpha, blur, inset, offsetX=
     octx.globalCompositeOperation = 'source-over';
   }
 
-  // гарантируем, что тень остаётся внутри ИСХОДНОЙ маски
   octx.globalCompositeOperation = 'destination-in';
   octx.drawImage(srcImg, 0, 0);
   octx.globalCompositeOperation = 'source-over';
 
   return out.toDataURL('image/png');
 }
-
 
 function openShadow(){
   shadowModal.hidden = false;
@@ -877,14 +798,26 @@ function openShadow(){
   shadowOffsetYInp.value = shadowParams.offsetY;
 }
 
-async function applyInnerShadow(){
-  shadowParams.color  = shadowColorInp.value || shadowParams.color;
-  shadowParams.alpha  = clamp(+shadowAlphaInp.value/100, 0, 1);
-  shadowParams.blur   = Math.max(0, +shadowBlurInp.value || 0);
-  shadowParams.inset  = Math.max(0, +shadowInsetInp.value || 0);
-  shadowParams.offsetX = Math.round(+shadowOffsetXInp.value || 0);
-  shadowParams.offsetY = Math.round(+shadowOffsetYInp.value || 0);
-  
+async function randomizeAndApplyShadow() {
+    shadowParams.color = randomHex();
+    shadowParams.alpha = (rand(25, 85) / 100);
+    shadowParams.blur = rand(10, 50);
+    shadowParams.inset = rand(5, 30);
+    shadowParams.offsetX = rand(-25, 25);
+    shadowParams.offsetY = rand(-25, 25);
+    await applyInnerShadow(false); // don't read from inputs
+}
+
+
+async function applyInnerShadow(readFromInputs = true){
+  if (readFromInputs) {
+      shadowParams.color  = shadowColorInp.value || shadowParams.color;
+      shadowParams.alpha  = clamp(+shadowAlphaInp.value/100, 0, 1);
+      shadowParams.blur   = Math.max(0, +shadowBlurInp.value || 0);
+      shadowParams.inset  = Math.max(0, +shadowInsetInp.value || 0);
+      shadowParams.offsetX = Math.round(+shadowOffsetXInp.value || 0);
+      shadowParams.offsetY = Math.round(+shadowOffsetYInp.value || 0);
+  }
 
   const baseMaskURL = isRounded && maskURL ? maskURL : await buildCurrentMaskURL();
   const pngURL = await buildInnerShadowPNG(baseMaskURL, shadowParams);
@@ -896,33 +829,33 @@ async function applyInnerShadow(){
     overlay.style.background = 'transparent';
 overlay.style.transform = isRounded
   ? `translateY(${lastShiftPx}px) scale(${mainZoom})`
-  : ''; // до силуэта трансформы не накладываем — они уже «запечены» в PNG тени
-    
-    // один раз после получения ссылок на инпуты тени:
-[shadowColorInp, shadowAlphaInp, shadowBlurInp, shadowInsetInp, shadowOffsetXInp, shadowOffsetYInp]
-  .forEach(inp => inp?.addEventListener('input', applyInnerShadow));
-
-
+  : '';
   } else {
     innerShadow.classList.remove('active');
     innerShadow.style.backgroundImage = '';
   }
 }
 
-
-
-
 function clearInnerShadow(){
   innerShadow.classList.remove('active');
   innerShadow.style.backgroundImage = '';
 }
 
-shadowToggle?.addEventListener('click', openShadow);
+shadowToggle?.addEventListener('click', async () => {
+    if (isFirstShadowClick) {
+        await randomizeAndApplyShadow();
+        isFirstShadowClick = false;
+    } else {
+        openShadow();
+    }
+});
 shadowClose?.addEventListener('click', ()=> shadowModal.hidden = true);
 shadowDone?.addEventListener('click',  ()=> shadowModal.hidden = true);
 shadowClear?.addEventListener('click', clearInnerShadow);
-shadowApply?.addEventListener('click', applyInnerShadow);
+shadowApply?.addEventListener('click', () => applyInnerShadow(true));
 
+[shadowColorInp, shadowAlphaInp, shadowBlurInp, shadowInsetInp, shadowOffsetXInp, shadowOffsetYInp]
+  .forEach(inp => inp?.addEventListener('input', () => applyInnerShadow(true)));
 
 document.querySelector('label[for="strokeEnabled"]')?.addEventListener('click', e=>{
   e.preventDefault();
@@ -930,25 +863,19 @@ document.querySelector('label[for="strokeEnabled"]')?.addEventListener('click', 
   strokeEnabledInput.dispatchEvent(new Event('change',{bubbles:true}));
 });
 
-
 function forceRepaint(el){
-  // хак для iOS Safari: короткий translateZ и чтение offsetHeight
   if (!el) return;
   const prev = el.style.transform;
   el.style.transform = (prev ? prev + ' ' : '') + 'translateZ(0)';
-  // триггерим layout
   void el.offsetHeight;
-  // откатываем
   el.style.transform = prev || '';
 }
 
 async function applySilhouetteStroke(){
   if (!silhouetteStroke) return;
 
-  // выключение
   if (!isRounded || !maskURL || !strokeOnSil || strokeWidthPx <= 0){
     silhouetteStroke.classList.remove('active');
-    // чистим DOM: никаких фонов/масок, и удаляем <img>
     silhouetteStroke.style.backgroundImage = '';
     silhouetteStroke.style.webkitMaskImage = '';
     silhouetteStroke.style.maskImage = '';
@@ -956,7 +883,6 @@ async function applySilhouetteStroke(){
     return;
   }
 
-  // 1) строим цветное кольцо (PNG dataURL)
   const coloredRingURL = await buildColoredRing(maskURL, Math.max(1, strokeWidthPx), strokeColor);
   if (!coloredRingURL){
     silhouetteStroke.classList.remove('active');
@@ -964,13 +890,11 @@ async function applySilhouetteStroke(){
     return;
   }
 
-  // 2) **никаких mask/background-image** — только <img>
   silhouetteStroke.style.webkitMaskImage = '';
   silhouetteStroke.style.maskImage = '';
   silhouetteStroke.style.backgroundImage = 'none';
   silhouetteStroke.style.background = 'transparent';
 
-  // создаём/переиспользуем <img>
   let imgEl = silhouetteStroke.querySelector('img');
   if (!imgEl){
     imgEl = document.createElement('img');
@@ -980,27 +904,14 @@ async function applySilhouetteStroke(){
     silhouetteStroke.appendChild(imgEl);
   }
 
-  // cache-buster для iOS, чтоб не показывал старый dataURL из кеша
   imgEl.src = coloredRingURL + '#' + Date.now();
-
   silhouetteStroke.classList.add('active');
-
-silhouetteStroke.style.background = 'transparent';
-
-
-  // лёгкий «пинок» WebKit
+  silhouetteStroke.style.background = 'transparent';
   silhouetteStroke.style.transform += ' translateZ(0)';
   void silhouetteStroke.offsetHeight;
   silhouetteStroke.style.transform = silhouetteStroke.style.transform.replace(' translateZ(0)', '');
 }
 
-
-
-
-
-
-
-// === ШУМ ДЛЯ ГРАДИЕНТА ===
 function makeNoiseTexture(tile=64, alpha=28) {
   const c = document.createElement('canvas');
   c.width = c.height = tile;
@@ -1023,14 +934,13 @@ function applyGrain() {
     grain.style.backgroundImage = '';
     return;
   }
-  if (!noiseURL) noiseURL = makeNoiseTexture(512, 255); // крупный тайл по дефолту
+  if (!noiseURL) noiseURL = makeNoiseTexture(512, 255);
   grain.style.backgroundImage = `url(${noiseURL})`;
   grain.style.backgroundSize = `${noiseSizePx}px ${noiseSizePx}px`;
   grain.style.opacity = noiseIntensity.toFixed(2);
   grain.hidden = false;
 }
 
-// === ГРАДИЕНТ ===
 const FEATHER = 8;
 
 function buildThreeStopGradient() {
@@ -1071,10 +981,10 @@ function openGrad(){
   gradModal.hidden = false;
 
   if (!gradWasOpened) {
-    randomGradient();         // только при первом открытии
+    randomGradient();
     gradWasOpened = true;
   } else {
-    applyGradientLive();      // дальше просто показываем текущее
+    applyGradientLive();
   }
 
   if (gradNoise)     gradNoise.value     = Math.round(noiseIntensity * 100);
@@ -1087,11 +997,9 @@ function closeGrad(){
 }
 
 function randomGradient() {
-  const randomColor = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
-
-  gradA.value = randomColor();
-  gradB.value = randomColor();
-  gradC.value = randomColor();
+  gradA.value = randomHex();
+  gradB.value = randomHex();
+  gradC.value = randomHex();
   gradAngle.value = rand(0, 360);
 
   let p1 = rand(10, 45);
@@ -1099,8 +1007,7 @@ function randomGradient() {
   gradBias1.value = p1;
   gradBias2.value = p2;
 
-  // рандом шума
-  noiseIntensity = Math.random() < .8 ? rand(5, 30) / 100 : 0; // 0..0.3
+  noiseIntensity = Math.random() < .8 ? rand(5, 25) / 100 : 0;
   noiseSizePx    = rand(300, 800);
   if (gradNoise)     gradNoise.value     = Math.round(noiseIntensity * 100);
   if (gradNoiseSize) gradNoiseSize.value = noiseSizePx;
@@ -1130,14 +1037,10 @@ function clearBackgroundAll(){
   applyGrain();
 }
 
-// === СИЛУЭТ ===
 async function roundCorners() {
-  // можно нажимать бесконечно: каждый раз запекаем то, что видно на сцене сейчас
-
   const SCALE = 2;
   const { width, height } = stage.getBoundingClientRect();
 
-  // запомним текущее состояние силуэта/обводки
   const wasRounded   = isRounded;
   const prevMaskURL  = maskURL;
   const wasStroke    = strokeOnSil;
@@ -1146,9 +1049,6 @@ async function roundCorners() {
     : (parseFloat(getComputedStyle(silhouetteFill).opacity) || 1);
 const ty = lastShiftPx * SCALE;
 
-
-
-  // 1) Снапим сцену БЕЗ overlay (html2canvas не любит css-mask)
   const snap = stage.cloneNode(true);
   const snapOverlay = snap.querySelector('#overlay');
   if (snapOverlay) snapOverlay.hidden = true;
@@ -1159,10 +1059,9 @@ const ty = lastShiftPx * SCALE;
   });
   document.body.appendChild(snap);
 
-   // ВРЕМЕННО прячем overlay, чтобы html2canvas не видел css-mask
   const overlayWasHidden = overlay.hidden;
   overlay.hidden = true;
-  
+
   const baseCanvas = await html2canvas(snap, {
     backgroundColor: '#ffffff',
     scale: SCALE,
@@ -1170,13 +1069,10 @@ const ty = lastShiftPx * SCALE;
     scrollX: 0, scrollY: 0,
     windowWidth: width, windowHeight: height
   });
-  
-  // возвращаем overlay как было
-  overlay.hidden = overlayWasHidden;
 
+  overlay.hidden = overlayWasHidden;
   document.body.removeChild(snap);
 
-  // 2) Дорисуем на копию всё, что overlay показывал раньше (заливку и обводку)
   const flat = document.createElement('canvas');
   flat.width  = baseCanvas.width;
   flat.height = baseCanvas.height;
@@ -1184,7 +1080,6 @@ const ty = lastShiftPx * SCALE;
   fctx.drawImage(baseCanvas, 0, 0);
 
   if (wasRounded && prevMaskURL) {
-    // 2а) старая обводка вокруг силуэта (если была включена)
     if (wasStroke) {
       let ringURL = (getComputedStyle(silhouetteStroke).webkitMaskImage ||
                      getComputedStyle(silhouetteStroke).maskImage || '').toString();
@@ -1207,7 +1102,6 @@ const ty = lastShiftPx * SCALE;
       }
     }
 
-    // 2б) старая заливка силуэта (с учётом прозрачности)
     const cs   = getComputedStyle(silhouetteFill);
     const bgImg= cs.backgroundImage;
     const bgCol= cs.backgroundColor;
@@ -1237,7 +1131,7 @@ const ty = lastShiftPx * SCALE;
     ctx.drawImage(mImg, 0, 0, fill.width, fill.height);
     ctx.globalCompositeOperation = 'source-over';
 
-    if (prevAlpha < 1) {                // применяем прежнюю прозрачность
+    if (prevAlpha < 1) {
       ctx.globalCompositeOperation = 'destination-in';
       ctx.fillStyle = `rgba(0,0,0,${prevAlpha})`;
       ctx.fillRect(0, 0, fill.width, fill.height);
@@ -1247,7 +1141,6 @@ const ty = lastShiftPx * SCALE;
     fctx.drawImage(fill, 0, ty);
   }
 
-  // 3) Из «плоской» картинки строим НОВУЮ маску (порогом)
   const work = document.createElement('canvas');
   work.width = flat.width; work.height = flat.height;
   const wctx = work.getContext('2d');
@@ -1267,86 +1160,61 @@ const ty = lastShiftPx * SCALE;
   wctx.putImageData(img, 0, 0);
   maskURL = work.toDataURL('image/png');
 
-  // 4) Подменяем overlay на НОВЫЙ силуэт, сохраняя прежние настройки
-// 4) Подменяем overlay на НОВЫЙ силуэт, без повторного масштабирования
 overlay.hidden = false;
 overlay.style.background = 'transparent';
 
-// --- ВАЖНО: сдвиг уже запечён в маску, поэтому здесь его ОБНУЛЯЕМ ---
-shiftBeforeRound = compShiftState;   // запомним, что было до силуэта
-compShiftState   = 0;                // логическое состояние
-lastShiftPx      = 0;                // фактический px-сдвиг
-overlay.style.transform = 'translateY(0)'; // никаких дополнительных сдвигов
+shiftBeforeRound = compShiftState;
+compShiftState   = 0;
+lastShiftPx      = 0;
+overlay.style.transform = 'translateY(0) scale(1)'; // Explicitly set scale to 1
 
 silhouetteFill.style.background = currentInk;
 silhouetteFill.style.webkitMaskImage = `url(${maskURL})`;
 silhouetteFill.style.maskImage      = `url(${maskURL})`;
 silhouetteFill.classList.add('active');
 
-// зум как раньше
 zoomBeforeRound = mainZoom;
 mainZoom = 1;
 
-// переключаем режим
-isRounded = true;
-
-// подчистим трансформы у строк (они скрыты)
 if (line1) line1.style.transform = '';
 if (line2) line2.style.transform = '';
 baseLH1 = baseLH2 = null;
 
-// синхронизируем (теперь overlay получит translateY(0) и scale(1))
 applyCompositionShift();
 applyMainZoom();
 
-
-// вернуть прежнюю прозрачность силуэта
 silAlpha = Number.isFinite(prevAlpha) ? prevAlpha : 1;
 silhouetteFill.style.opacity = silAlpha.toFixed(2);
 
-// спрячем живую композицию
 composition.style.visibility = 'hidden';
 
-// исходные micro уже «запечены» — удалим из DOM
 removeMicro();
 
-// если была обводка/тень — пересоберём по новой маске
 await applySilhouetteStroke();
 if (innerShadow.classList.contains('active')) {
-  await applyInnerShadow();
+  await applyInnerShadow(false);
 }
 
 if (liveStrokeOn) { liveStrokeOn = false; applyLiveStroke(); }
 if (btnUndo) btnUndo.hidden = false;
 
-  // ...после того как включили overlay/силуэт...
-  // композицию прячем
   composition.style.visibility = 'hidden';
 
-  // --- ДОБАВИ ЭТО ---
-  // исходные .micro-* уже «запечены» в силуэт — удаляем их из DOM
   removeMicro();
-  // --- КОНЕЦ ДОБАВКИ ---
 
-  // ВАЖНО: не трогаем флаг обводки — если была включена, остаётся включённой
   await applySilhouetteStroke();
 
-  // лайв-обводку не включаем (она уже запекается при повторных снапах)
   if (liveStrokeOn) { liveStrokeOn = false; applyLiveStroke(); }
 
   isRounded = true;
   if (btnUndo) btnUndo.hidden = false;
-  
-  // если была включена внутренняя тень — пересоберём по новой маске силуэта
+
 if (innerShadow.classList.contains('active')) {
-  await applyInnerShadow();
+  await applyInnerShadow(false);
 }
-
-
 }
 
 async function buildCurrentMaskURL(){
-  // Снимок сцены без overlay, как в roundCorners
   const SCALE = 2;
   const { width, height } = stage.getBoundingClientRect();
 
@@ -1370,7 +1238,6 @@ async function buildCurrentMaskURL(){
 
   document.body.removeChild(snap);
 
-  // Порог как в roundCorners
   const work = document.createElement('canvas');
   work.width = baseCanvas.width;
   work.height = baseCanvas.height;
@@ -1393,51 +1260,45 @@ async function buildCurrentMaskURL(){
   return work.toDataURL('image/png');
 }
 
+function undoAll({ preserveCurrentState = false } = {}) {
+  // Store the state we might want to preserve
+  const currentZoom = mainZoom;
+  const currentShift = compShiftState;
 
-
-function undoAll(){
   if (composition) composition.style.visibility = 'visible';
-  resetRoundState({force:true});
-  
-// СБРОСИТЬ инлайновые line-height, чтобы база снова читалась из CSS (normal)
-if (line1) line1.style.lineHeight = '';
-if (line2) line2.style.lineHeight = '';
-// и пересчитать базу заново при следующем зуме
-baseLH1 = baseLH2 = null;
+  resetRoundState({ force: true });
 
-  
-    // <— ДОБАВЬ ЭТО:
-  mainZoom = zoomBeforeRound;   // вернуть тот зум, что был до силуэта
-  applyMainZoom();
-  
-   // --- ДОБАВЬ ЭТО: вернуть сдвиг, который был до силуэта ---
-  compShiftState = shiftBeforeRound;
+  if (line1) line1.style.lineHeight = '';
+  if (line2) line2.style.lineHeight = '';
+  baseLH1 = baseLH2 = null;
+
+  // If preserving, use current values. If not (standard "Undo"), restore pre-silhouette state.
+  mainZoom = preserveCurrentState ? currentZoom : zoomBeforeRound;
+  compShiftState = preserveCurrentState ? currentShift : shiftBeforeRound;
+
   applyCompositionShift();
 
   liveStrokeOn = false;
-  strokeOnSil  = false;
+  strokeOnSil = false;
   applyLiveStroke();
 
-  if (silhouetteStroke){
+  if (silhouetteStroke) {
     silhouetteStroke.classList.remove('active');
     silhouetteStroke.style.webkitMaskImage = '';
     silhouetteStroke.style.maskImage = '';
   }
-  if (overlay){
+  if (overlay) {
     overlay.style.transform = '';
   }
-  if (silhouetteFill){
+  if (silhouetteFill) {
     silhouetteFill.style.transform = '';
   }
   if (btnUndo) btnUndo.hidden = true;
-  
+
   clearInnerShadow();
-  applyMainZoom();
-
-
+  applyMainZoom(); // Apply the determined zoom level
 }
 
-// === ДВИЖЕНИЕ КОМПОЗИЦИИ ===
 function applyCompositionShift() {
   if (!composition) return;
   const baseRect = composition.getBoundingClientRect();
@@ -1445,26 +1306,22 @@ function applyCompositionShift() {
   const px = Math.round(compH * SHIFT_FACTOR);
   const offset = compShiftState === 1 ? -px : compShiftState === -1 ? px : 0;
 
-  lastShiftPx = offset; // ← запомним актуальный сдвиг
+  lastShiftPx = offset;
 
   const t = `translateY(${offset}px)`;
   composition.style.transform = t;
 
   if (isRounded) {
-    // после силуэта — дописываем scale(mainZoom) к overlay
     overlay.style.transform = `${t} scale(${mainZoom})`;
     silhouetteFill.style.transform = '';
     if (silhouetteStroke) silhouetteStroke.style.transform = '';
   }
 }
 
-
-// хелпер: вытащить translateY(px) из transform
 function getTranslateY(el){
   if (!el) return 0;
   const tr = getComputedStyle(el).transform;
   if (!tr || tr === 'none') return 0;
-  // matrix(a,b,c,d,tx,ty)
   const m = tr.match(/matrix\(([^)]+)\)/);
   if (m) {
     const p = m[1].split(',').map(v=>parseFloat(v));
@@ -1474,7 +1331,6 @@ function getTranslateY(el){
   return t ? parseFloat(t[1]) : 0;
 }
 
-
 function kickSafariRepaint(el){
   if (!el) return;
   el.style.transform += ' rotate(0.0001deg)';
@@ -1483,23 +1339,19 @@ function kickSafariRepaint(el){
 }
 
 async function buildColoredRing(baseMaskURL, growPx, color){
-  // 1) получаем альфа-кольцо (как у тебя, или через ф-ю ниже)
   const ringMaskURL = await buildOuterStrokeMask(baseMaskURL, Math.max(1, growPx));
   if (!ringMaskURL) return '';
 
-  // 2) красим кольцо в color → получаем готовую RGBA-картинку
   const maskImg = await loadImage(ringMaskURL);
   const w = maskImg.width, h = maskImg.height;
 
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const ctx = c.getContext('2d');
 
-  // фон — наш цвет
   ctx.clearRect(0,0,w,h);
   ctx.fillStyle = color;
   ctx.fillRect(0,0,w,h);
 
-  // вырезаем цвет по альфе кольца
   ctx.globalCompositeOperation = 'destination-in';
   ctx.drawImage(maskImg, 0, 0, w, h);
   ctx.globalCompositeOperation = 'source-over';
@@ -1507,14 +1359,13 @@ async function buildColoredRing(baseMaskURL, growPx, color){
   return c.toDataURL('image/png');
 }
 
-
-
 async function downloadPng(){
   const SCALE = window.devicePixelRatio || 2;
   const { width, height } = stage.getBoundingClientRect();
 
-  // 1) база: клон сцены БЕЗ overlay, БЕЗ скруглений рамки
   const baseClone = stage.cloneNode(true);
+  const grainClone = baseClone.querySelector('#grain');
+  if (grainClone) grainClone.hidden = true;
   const baseOv = baseClone.querySelector('#overlay');
   if (baseOv) baseOv.hidden = true;
 
@@ -1538,40 +1389,29 @@ async function downloadPng(){
 
   document.body.removeChild(baseClone);
 
-  // 2) итоговый холст
   const out = document.createElement('canvas');
   out.width  = baseCanvas.width;
   out.height = baseCanvas.height;
   const octx = out.getContext('2d');
   octx.imageSmoothingEnabled = true;
 
-  // база (фон/градиент/шум/живая типографика и т.п.)
   octx.drawImage(baseCanvas, 0, 0);
 
-  // вычислим сдвиг силуэта (px в рендер-скейле)
  const ty = lastShiftPx * SCALE;
 
-
-  // 3) ОБВОДКА вокруг силуэта (если включена)
- // 3) ОБВОДКА вокруг силуэта (если включена)
 if (isRounded && strokeOnSil && maskURL){
-  // пытаемся взять готовую картинку кольца из <img>
   let ringURL = silhouetteStroke?.querySelector('img')?.src || '';
 
-  // если по какой-то причине её нет — пересчитываем
   if (!ringURL || ringURL.startsWith('data:') === false){
     ringURL = await buildColoredRing(maskURL, Math.max(1, strokeWidthPx), strokeColor);
   }
 
   if (ringURL){
     const ringImg = await loadImage(ringURL);
-    // рисуем как есть (это уже цветная PNG с альфой)
     octx.drawImage(ringImg, 0, ty, out.width, out.height);
   }
 }
 
-
-  // 4) ЗАЛИВКА силуэта (если активна)
   if (isRounded && silhouetteFill.classList.contains('active') && maskURL){
     const cs = getComputedStyle(silhouetteFill);
     const bgImg = cs.backgroundImage;
@@ -1582,7 +1422,6 @@ if (isRounded && strokeOnSil && maskURL){
     fill.width = out.width; fill.height = out.height;
     const fctx = fill.getContext('2d');
 
-    // фон заливки: градиент / картинка / цвет
     if (bgImg && bgImg.startsWith('linear-gradient')) {
       paintGradient(fctx, fill.width, fill.height, bgImg);
     } else if (bgImg && bgImg.startsWith('url(')) {
@@ -1599,41 +1438,55 @@ if (isRounded && strokeOnSil && maskURL){
       fctx.fillRect(0,0,fill.width,fill.height);
     }
 
-// ...
-// 3б) применяем альфа-маску силуэта
 const mImg = await loadImage(maskURL);
 fctx.globalCompositeOperation = 'destination-in';
 fctx.drawImage(mImg, 0, 0, fill.width, fill.height);
 fctx.globalCompositeOperation = 'source-over';
 
-// 3в) применяем ОПАСИТИ силуэта (без getImageData)
-// ...после того как ты сделал destination-in маской mImg:
 if (alpha < 1) {
   fctx.globalCompositeOperation = 'destination-in';
   fctx.fillStyle = `rgba(0,0,0,${alpha})`;
   fctx.fillRect(0, 0, fill.width, fill.height);
   fctx.globalCompositeOperation = 'source-over';
 }
-
-// рисуем со сдвигом
 octx.drawImage(fill, 0, ty);
-
-
   }
 
-  // 4.5) INNER SHADOW — дорисовываем PNG тени поверх базы
 if (innerShadow.classList.contains('active')) {
   const bg = innerShadow.style.backgroundImage || '';
   const m = bg.match(/^url\(["']?(.+?)["']?\)/i);
   if (m && m[1]) {
     const shImg = await loadImage(m[1]);
-    // ty — уже посчитанный вертикальный сдвиг сцены (translateY)
     octx.drawImage(shImg, 0, ty, out.width, out.height);
   }
 }
 
-  
-  // 5) сохранить PNG
+  if (noiseIntensity > 0) {
+    if (!noiseURL) noiseURL = makeNoiseTexture(512, 255);
+    try {
+      const noiseImg = await loadImage(noiseURL);
+      const scaleFactor = (noiseSizePx / noiseImg.width) * SCALE;
+      const w = noiseImg.width * scaleFactor;
+      const h = noiseImg.height * scaleFactor;
+
+      octx.globalCompositeOperation = 'multiply';
+      octx.globalAlpha = noiseIntensity;
+
+      for (let y = 0; y < out.height; y += h) {
+        for (let x = 0; x < out.width; x += w) {
+          octx.drawImage(noiseImg, x, y, w, h);
+        }
+      }
+
+      octx.globalCompositeOperation = 'source-over';
+      octx.globalAlpha = 1.0;
+    } catch (e) {
+      console.error("Failed to apply grain during export", e);
+      octx.globalCompositeOperation = 'source-over';
+      octx.globalAlpha = 1.0;
+    }
+  }
+
   out.toBlob((blob)=>{
     if (!blob) return;
     const url = URL.createObjectURL(blob);
@@ -1647,8 +1500,6 @@ if (innerShadow.classList.contains('active')) {
   }, 'image/png');
 }
 
-
-// === КРЕСТЫ/МИКРО/ПУЗЫРИ ===
 function clearCrosses(){ if (decors) decors.innerHTML = ''; }
 
 function toggleCrosses(){
@@ -1696,11 +1547,11 @@ function toggleCrosses(){
 btnGenerate?.addEventListener('click', generate);
 btnRound?.addEventListener('click', roundCorners);
 btnDownload?.addEventListener('click', downloadPng);
-btnUndo?.addEventListener('click', undoAll);
+btnUndo?.addEventListener('click', () => undoAll({ preserveCurrentState: false }));
 
 btnMoveUp?.addEventListener('click', () => { compShiftState = Math.min(1, compShiftState + 1); applyCompositionShift(); });
 btnMoveDown?.addEventListener('click', () => { compShiftState = Math.max(-1, compShiftState - 1); applyCompositionShift(); });
-window.addEventListener('resize', applyCompositionShift);
+
 
 btnCringe?.addEventListener('click', () => {
   const outlined = stage.querySelectorAll('.ch.outlined');
@@ -1720,41 +1571,16 @@ btnCringe?.addEventListener('click', () => {
 
 btnCrosses?.addEventListener('click', toggleCrosses);
 
-function removeMicro(){
-  // убираем микротекст и из композиции, и из «плавающих» слоёв
-  composition?.querySelector('.micro-row')?.remove();
-  stage?.querySelectorAll('.micro-floating').forEach(n => n.remove());
-}
-
-function makeMicroRow(words){
-  const row = document.createElement('div');
-  row.className = 'micro-row';
-  row.dataset.size = ['sm','md','lg'][rand(0,2)];
-  row.style.fontFamily = `'${sample(SANS_POOL)}', system-ui, sans-serif`;
-
-  for (const w of words){
-    const chip = document.createElement('span');
-    chip.className = 'micro-chip';
-    chip.textContent = w;
-    row.appendChild(chip);
-  }
-  return row;
-}
-
-// Открыть модалку
 btnMicro?.addEventListener('click', () => {
-  // подставим текущее
   microInput.value = microState.text || (I18N[currentLang]?.micro_prompt_default ?? '');
   microSize.value  = microState.sizePx;
   microPosBtns.forEach(b => b.classList.toggle('active', b.dataset.pos === microState.pos));
   microModal.hidden = false;
 });
 
-// Закрыть модалку
 microClose?.addEventListener('click', ()=> microModal.hidden = true);
 microDone?.addEventListener('click',  ()=> microModal.hidden = true);
 
-// Выбор позиции
 microPosBtns.forEach(btn=>{
   btn.addEventListener('click', ()=>{
     microPosBtns.forEach(b=>b.classList.remove('active'));
@@ -1763,22 +1589,21 @@ microPosBtns.forEach(btn=>{
   });
 });
 
-// Применить
 microApply?.addEventListener('click', ()=>{
   microState.text = (microInput.value || '').trim();
   microState.sizePx = Math.max(10, Math.min(36, +microSize.value || 14));
   renderMicro();
 });
 
-// Убрать
+microSize?.addEventListener('input', () => {
+    microState.sizePx = Math.max(10, Math.min(36, +microSize.value || 14));
+    renderMicro();
+});
+
 microClear?.addEventListener('click', ()=>{
   microState.text = '';
   removeMicro();
 });
-
-
-
-
 
 btnInvert?.addEventListener('click', () => {
   const toLight = !stage.classList.contains('light');
@@ -1788,12 +1613,12 @@ btnInvert?.addEventListener('click', () => {
   else composition.style.color = currentInk;
 });
 
-// фон
 btnBg?.addEventListener('click', () => inpBgUpload?.click());
 inpBgUpload?.addEventListener('change', (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   if (currentBgUrl) { URL.revokeObjectURL(currentBgUrl); currentBgUrl=''; }
+  if (currentBgBlobUrl) { URL.revokeObjectURL(currentBgBlobUrl); currentBgBlobUrl=''; }
   currentBgUrl = URL.createObjectURL(file);
   if (bgLayer){
     bgLayer.style.backgroundImage = `url(${currentBgUrl})`;
@@ -1802,7 +1627,6 @@ inpBgUpload?.addEventListener('change', (e) => {
 });
 btnBgClear?.addEventListener('click', clearBackgroundAll);
 
-// градиент
 btnGradToggle?.addEventListener('click', openGrad);
 btnGradClose?.addEventListener('click', closeGrad);
 btnGradDone?.addEventListener('click', closeGrad);
@@ -1813,7 +1637,6 @@ document.getElementById('gradRandom')?.addEventListener('click', randomGradient)
   el?.addEventListener('input', applyGradientLive);
 });
 
-// шум (ползунки)
 gradNoise?.addEventListener('input', () => {
   noiseIntensity = clamp(+gradNoise.value / 100, 0, 1);
   applyGrain();
@@ -1823,21 +1646,19 @@ gradNoiseSize?.addEventListener('input', () => {
   applyGrain();
 });
 
-// цвет/альфа + опциональные инпуты обводки в модалке
 btnColorToggle?.addEventListener('click', openColor);
 colorClose?.addEventListener('click', ()=> colorModal.hidden = true);
 colorDone?.addEventListener('click', ()=> colorModal.hidden = true);
 colorModal?.addEventListener('click', e=>{ if(e.target===e.currentTarget) colorModal.hidden = true; });
 
-function openColor(){ 
+function openColor(){
   colorModal.hidden = false;
   if (colorPick)  colorPick.value  = currentInk;
   if (colorAlpha) colorAlpha.value = Math.round((silAlpha ?? 1) * 100);
   if (strokeColorInput)    strokeColorInput.value    = strokeColor;
   if (strokeWidthInput)    strokeWidthInput.value    = strokeWidthPx;
-  if (strokeEnabledInput)  strokeEnabledInput.checked = !!strokeOnSil; // <-- было strokeEnabled
+  if (strokeEnabledInput)  strokeEnabledInput.checked = !!strokeOnSil;
 }
-
 
 colorPick?.addEventListener('input', ()=>{
   currentInk = colorPick.value;
@@ -1850,8 +1671,8 @@ colorPick?.addEventListener('input', ()=>{
 colorAlpha?.addEventListener('input', ()=>{
   if (isRounded && silhouetteFill.classList.contains('active')) {
     const a = (+colorAlpha.value/100);
-    silAlpha = a;                             // ← сохраняем
-    silhouetteFill.style.opacity = a.toFixed(2); // визуально в UI
+    silAlpha = a;
+    silhouetteFill.style.opacity = a.toFixed(2);
   }
 });
 strokeColorInput?.addEventListener('input', async ()=>{
@@ -1882,23 +1703,16 @@ btnZoomOut?.addEventListener('click', ()=>{
   applyMainZoom();
 });
 
-
-
 const btnBgPin = document.getElementById('bgPin');
 
 async function randomPinterestBg(){
   try {
-    // URL воркера, например:
-    // https://weirdcore-proxy.your-subdomain.workers.dev/?q=weirdcore%20aesthetic
     const workerURL = 'https://<твоя_зона>.workers.dev/?q=' + encodeURIComponent('weirdcore aesthetic') + '&_=' + Date.now();
-
-    // просто ставим его как фоновую картинку
     bgLayer.style.backgroundImage = `url(${workerURL})`;
     bgLayer.hidden = false;
   } catch (e) {
     console.error(e);
-    // fallback — Unsplash/Picsum
-    await setBgUrl(randomUnsplashUrl());
+    await setRandomBg();
   }
 }
 
@@ -1906,94 +1720,115 @@ btnBgPin?.addEventListener('click', randomPinterestBg);
 
 let strokeWasRandomized = false;
 
-// одна кнопка «Обводка» — и до, и после силуэта
 strokeToggle?.addEventListener('click', async ()=>{
-  const randomHex = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
-
   if (!isRounded){
-    // До силуэта: «живая» обводка
     const turningOn = !liveStrokeOn;
     if (turningOn && !strokeWasRandomized){
       strokeColor   = randomHex();
       strokeWidthPx = Math.max(1, rand(6, 24));
-      strokeWasRandomized = true; // больше не рандомим в этой сессии
+      strokeWasRandomized = true;
     }
     liveStrokeOn = !liveStrokeOn;
     applyLiveStroke();
   } else {
-    // После силуэта: кольцевая обводка
     const turningOn = !strokeOnSil;
     if (turningOn && !strokeWasRandomized){
       strokeColor   = randomHex();
       strokeWidthPx = Math.max(1, rand(6, 24));
-      strokeWasRandomized = true; // больше не рандомим в этой сессии
+      strokeWasRandomized = true;
     }
     strokeOnSil = !strokeOnSil;
     overlay.hidden = false;
     await applySilhouetteStroke();
   }
 
-  // синхроним значения, если модалка открыта
   if (strokeColorInput)   strokeColorInput.value   = strokeColor;
   if (strokeWidthInput)   strokeWidthInput.value   = strokeWidthPx;
   if (strokeEnabledInput) strokeEnabledInput.checked = !!strokeOnSil;
 });
 
-
-
 const btnBgRandom = document.getElementById('bgRandom');
 
-btnBgRandom?.addEventListener('click', () => {
-  setBgUrl(randomUnsplashUrl());
-});
+const loadImageAndSet = (src) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      if (currentBgBlobUrl) {
+        URL.revokeObjectURL(currentBgBlobUrl);
+        currentBgBlobUrl = '';
+      }
+      if (currentBgUrl) {
+          URL.revokeObjectURL(currentBgUrl);
+          currentBgUrl = '';
+      }
 
+      bgLayer.style.backgroundImage = `url(${src})`;
+      bgLayer.hidden = false;
+      // Defer resolving until the next paint cycle to sync with render
+      requestAnimationFrame(() => {
+        resolve();
+      });
+    };
+    img.onerror = (err) => {
+      console.error(`Failed to load image from ${src}`, err);
+      reject(err);
+    };
+    img.src = src;
+  });
+};
 
-
-function randomPicsumUrl(){
-  const w = 1080, h = 1440; // 3:4 под вашу сцену
-  return `https://picsum.photos/${w}/${h}?random=${Date.now()}`;
+async function loadRandomBg() {
+    try {
+        const page = rand(1, 200);
+        const apiResponse = await fetch(`https://picsum.photos/v2/list?page=${page}&limit=1`);
+        if (!apiResponse.ok) throw new Error('Picsum API request failed');
+        const images = await apiResponse.json();
+        if (!images || !images.length) throw new Error('No images from Picsum API');
+        const imageUrl = `https://picsum.photos/id/${images[0].id}/1080/1440`;
+        await loadImageAndSet(imageUrl);
+    } catch (e) {
+        console.error('bg load failed, trying fallback', e);
+        const fallback = `https://picsum.photos/seed/${Date.now()}/1080/1440`;
+        try {
+            await loadImageAndSet(fallback);
+        } catch (fallbackErr) {
+            console.error("Fallback BG also failed", fallbackErr);
+            throw fallbackErr;
+        }
+    }
 }
 
-function randomUnsplashUrl(){
-  const q = encodeURIComponent('weirdcore aesthetic');
-  return `https://source.unsplash.com/random/1080x1440/?${q}&_=${Date.now()}`;
-}
+async function setRandomBg() {
+  const btn = document.getElementById('bgRandom');
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('loading');
+  }
 
-
-async function setBgUrl(url){
   try {
-    const resp = await fetch(url, {
-      cache: 'no-store',
-      redirect: 'follow',
-      referrerPolicy: 'no-referrer'
-    });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-    const blob = await resp.blob();
-    if (currentBgBlobUrl) URL.revokeObjectURL(currentBgBlobUrl);
-    currentBgBlobUrl = URL.createObjectURL(blob);
-
-    bgLayer.style.backgroundImage = `url(${currentBgBlobUrl})`;
-    bgLayer.hidden = false;
-  } catch (e) {
-    console.error('bg load failed', e);
-    // одноразовый фоллбек, чтобы не уйти в рекурсию
-    if (!/picsum\.photos/.test(url)) {
-      const fallback = `https://picsum.photos/seed/${Date.now()}/1080/1440`;
-      setBgUrl(fallback);
+    await loadRandomBg();
+  } catch(e) {
+    // Error already logged
+  } finally {
+    await sleep(500); // Add delay
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('loading');
     }
   }
 }
 
 
+btnBgRandom?.addEventListener('click', (e) => {
+    if (e.currentTarget.disabled) return;
+    awardCringePoints(e.currentTarget, e);
+    setRandomBg();
+});
 
-// первичный рендер
-generate();
 
-// --- Перенос footer под #stage только на мобилке ---
 const footerEl = document.querySelector('footer');
 const stageEl  = document.getElementById('stage');
-
 let footerHomeParent = footerEl?.parentElement || null;
 let footerHomeNext   = footerEl?.nextSibling || null;
 
@@ -2002,12 +1837,9 @@ function placeFooterByViewport(){
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
   if (isMobile) {
-    // поставить сразу ПОСЛЕ #stage (не внутрь него)
     if (stageEl.nextElementSibling !== footerEl) stageEl.after(footerEl);
-    // вдруг где-то был display:none
     footerEl.style.display = '';
   } else {
-    // вернуть на место
     if (footerHomeParent && !footerHomeParent.contains(footerEl)) {
       if (footerHomeNext) footerHomeParent.insertBefore(footerEl, footerHomeNext);
       else footerHomeParent.appendChild(footerEl);
@@ -2015,7 +1847,197 @@ function placeFooterByViewport(){
   }
 }
 
-// запуск и подписка
-placeFooterByViewport();
-window.addEventListener('resize', placeFooterByViewport);
+// === GAMIFICATION LOGIC ===
+let currentCringe = 0;
+const MAX_CRINGE = 1000;
 
+const cringeBarProgress = document.getElementById('cringe-bar-progress');
+const cringeLabel = document.getElementById('cringe-label');
+const ultimateBtn = document.getElementById('ultimateBtn');
+
+function saveProgress() {
+  localStorage.setItem('typo_current_cringe', currentCringe);
+}
+
+function loadProgress() {
+  const savedCringe = localStorage.getItem('typo_current_cringe');
+  if (savedCringe) {
+    currentCringe = parseInt(savedCringe, 10) || 0;
+  }
+}
+
+function updateCringeUI() {
+  if (!cringeBarProgress || !cringeLabel) return;
+  const progressPercent = (currentCringe / MAX_CRINGE) * 100;
+  cringeBarProgress.style.width = `${progressPercent}%`;
+
+  const t = I18N[currentLang] || I18N['en'];
+  cringeLabel.textContent = t.cringe_bar
+      .replace('{current}', currentCringe)
+      .replace('{max}', MAX_CRINGE);
+
+  if (ultimateBtn) {
+      ultimateBtn.hidden = currentCringe < MAX_CRINGE;
+      if (!ultimateBtn.disabled) {
+          const span = ultimateBtn.querySelector('span');
+          if(span) span.textContent = t.ultimate;
+      }
+  }
+}
+
+function addCringe(amount) {
+  if (currentCringe >= MAX_CRINGE) return;
+  currentCringe = Math.min(MAX_CRINGE, currentCringe + amount);
+  saveProgress();
+  updateCringeUI();
+}
+
+function showFloatingPoints(amount, event) {
+    const pointsEl = document.createElement('div');
+    pointsEl.textContent = `+${amount}`;
+    pointsEl.className = 'cringe-points-popup';
+    pointsEl.style.left = `${event.clientX}px`;
+    pointsEl.style.top = `${event.clientY}px`;
+    document.body.appendChild(pointsEl);
+
+    pointsEl.addEventListener('animationend', () => {
+        pointsEl.remove();
+    });
+}
+
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+async function performUltimate() {
+    if (!ultimateBtn) return;
+    ultimateBtn.disabled = true;
+    ultimateBtn.classList.add('loading');
+    
+    // Clear all effects but preserve the user's current zoom level.
+    // This prevents the composition from visually snapping to a different size.
+    undoAll({ preserveCurrentState: true });
+    await sleep(250);
+
+    // 1. Small Text: Use existing if available, otherwise generate random.
+    if (!microState.text || microState.text.trim() === '') {
+        const phrasePool = currentLang === 'en' ? PHRASES_EN : PHRASES_RU;
+        microState.text = sample(phrasePool).join(' ');
+    }
+    microState.pos = sample(['top-stage', 'bottom-stage', 'above-line1', 'below-line2']);
+    renderMicro();
+    await sleep(250);
+
+    // 2. Bubbles
+    btnCringe.click();
+    await sleep(250);
+
+    // 3. Crosses
+    btnCrosses.click();
+    await sleep(250);
+
+    // 4. RANDOM BG (and wait for it to load)
+    try {
+        await loadRandomBg(); 
+    } catch(e) {}
+    await sleep(500); // Artificial delay for ultimate spinner
+
+    // 5. Silhouette: The composition is already at the correct user-defined zoom.
+    // roundCorners will capture it as-is, then internally reset zoom to 1 for the now-hidden text lines.
+    // The resulting overlay will have a "baked-in" zoom and a CSS scale of 1, preserving the exact size.
+    await roundCorners();
+    await sleep(250);
+
+    // 6. Stroke (with random thickness and color)
+    strokeOnSil = true;
+    strokeColor = randomHex();
+    strokeWidthPx = rand(8, 20);
+    await applySilhouetteStroke();
+    await sleep(250);
+
+    // 7. Shadow
+    await randomizeAndApplyShadow();
+    await sleep(250);
+    
+    // 8. Color
+    currentInk = randomHex();
+    if (isRounded && silhouetteFill.classList.contains('active')) {
+        silhouetteFill.style.backgroundColor = currentInk;
+        silhouetteFill.style.backgroundImage = ''; // Clear any previous gradient
+    }
+    await sleep(250);
+
+    // 9. Gradient as the cherry on top
+    randomGradient();
+    if (isRounded) {
+        silhouetteFill.style.backgroundImage = buildThreeStopGradient();
+    }
+    await sleep(250);
+
+    currentCringe = 0;
+    saveProgress();
+    updateCringeUI();
+
+    ultimateBtn.disabled = false;
+    ultimateBtn.classList.remove('loading');
+    const t = I18N[currentLang] || I18N['en'];
+    const span = ultimateBtn.querySelector('span');
+    if(span) span.textContent = t.ultimate;
+}
+
+
+function awardCringePoints(button, event) {
+  if (!button || button.disabled) return;
+
+  const id = button.id;
+  const POINTS_MAP = {
+    round: 169,
+    gradToggle: 88, cringe: 88, micro: 88, crosses: 88,
+    bgRandom: 88, bgBtn: 88, strokeToggle: 88, shadowToggle: 88,
+    moveUp: 40, moveDown: 40, zoomIn: 40, zoomOut: 40,
+    btn: 40, invert: 40, bgClear: 40, colorToggle: 40, undoAll: 40, download: 40,
+  };
+
+  const noPointsButtons = [
+    'ultimateBtn', 'gradRandom', 'gradClear', 'gradDone', 'colorDone',
+    'shadowApply', 'shadowClear', 'shadowDone', 'microClear', 'microApply',
+    'microDone', 'gradClose', 'colorClose', 'shadowClose', 'microClose'
+  ];
+
+  if (noPointsButtons.includes(id) || button.classList.contains('micro-pos') || button.classList.contains('lang-btn')) {
+    return;
+  }
+
+  const points = POINTS_MAP[id];
+  if (points) {
+    addCringe(points);
+    showFloatingPoints(points, event);
+  }
+}
+
+ultimateBtn?.addEventListener('click', performUltimate);
+
+document.body.addEventListener('click', (e) => {
+    const button = e.target.closest('button');
+    if (button?.id === 'bgRandom') return; // Handled separately to award points before disabling
+    awardCringePoints(button, e);
+});
+
+// --- INITIALIZATION ---
+window.addEventListener('load', () => {
+    applyLang(currentLang);
+
+    if (stage) {
+        const ro = new ResizeObserver(() => requestAnimationFrame(updateFontSize));
+        ro.observe(stage);
+    }
+    document.fonts?.ready?.then(updateFontSize);
+
+    generate();
+
+    window.addEventListener('resize', applyCompositionShift);
+
+    placeFooterByViewport();
+    window.addEventListener('resize', placeFooterByViewport);
+
+    loadProgress();
+    updateCringeUI();
+});
