@@ -1,812 +1,860 @@
-<style>
-/* CSS */
-:root { --bg:#f6f6f8; --ink:#0a0a0a; }
-
-html, body { height: 100%; }
-
-body {
-  background: #f8f8f8 !important;
-    margin: 0;
-    background: var(--bg);
-    font-family: Roboto, system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-    color: var(--ink);
-    display: grid;
-    place-items: center;
-    padding: 16px;
-    align-items: start;
-    box-sizing: border-box;
-}
-
-.app {
-    max-width: 768px;
-    display: flex
-;
-    /* align-items: center; */
-    width: 100%;
-    height: 100%;
-    justify-content: space-between;
-}
-
-.left {
-    display: flex
-;
-    flex: 1;
-    flex-direction: column;
-    /* gap: 10px; */
-    padding-right: 2%;
-    justify-content: space-between;
-}
-
-/* фон-картинка под композицией */
-.bg{
-  position:absolute;
-  inset:0;
-  z-index:0;
-  background-position:center;
-  background-size:cover;
-  background-repeat:no-repeat;
-}
-
-/* чтобы переключение белый/чёрный красило всё сразу */
-.composition { color:#000; }
-.stage.light .composition { color:#fff; }
-.composition .ch { color: inherit !important; }
-
-.line { transform-origin: center center; }
-
-/* мелкая типографика */
-.micro{
-  font-size: 14px;
-  line-height: 1.2;
-  letter-spacing: .2px;
-  text-align:center;
-  margin: 6px 0 2px;
-  opacity:.9;
-}
-/* чуть рандомим размер через data-size (см. JS) */
-.micro[data-size="lg"]{ font-size:16px; }
-.micro[data-size="md"]{ font-size:14px; }
-
-/* мелкий текст — контейнер внутри composition */
-.micro-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 90%;
-  flex-wrap: wrap;
-}
-
-.lang-switch{display:flex;gap:6px;margin:0px}
-.lang-btn{background:#fff;color:#111;border:1px solid #c8c8c8;border-radius:999px;    padding: 6px 8px 8px;line-height:1}
-.lang-btn.active{background: #b7b7b7;
-    color: #fff;
-    border-color: #b7b7b7;}
-
-
-.micro-floating{
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(108% - 40px);   /* чтобы было по краям по 20px */
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  z-index: 1;                 /* над фоном, под overlay ок */
-  pointer-events: none;       /* не мешаем кликам по UI */
-  color: inherit;             /* возьмём цвет контейнера */
-}
-
-.micro-floating.top{    top: 20px; }
-.micro-floating.bottom{ bottom: 20px; }
-
-/* Цвет для светлой темы сцены */
-.stage.light .micro-floating { color: #fff; }
-
-/* Чуть уменьшить межстрочный для чипов, когда они висят отдельно */
-.micro-floating .micro-chip { line-height: 1.1; }
-
-.micro-chip{
-  font-size:14px;                 /* базовый */
-  line-height:1.2;
-  letter-spacing:.2px;
-  font-weight:bold;
-  opacity:.95;
-  white-space:nowrap;
-  text-transform: uppercase; 
-  -webkit-text-stroke: thin;
-}
-.micro-row[data-size="md"] .micro-chip{ font-size:16px; }
-.micro-row[data-size="lg"] .micro-chip{ font-size:20px; }
-
-.micro-row { text-transform: lowercase; }
-
-
-
-/* Мини-попап действий для "Силуэта" */
-
-.action-popover{
-  position: fixed; /* было absolute */
-  z-index: 10000;
-  background: #fff;
-  border: 1px solid #c8c8c8;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.15);
-  padding: 8px;
-  display: grid;
-  gap: 6px;
-}
-
-
-.action-popover[hidden]{ display:none !important; }
-
-/* Чтобы threshold фон не мешал заливке (когда надо) */
-.overlay.threshold-only{
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-/* Слой внутренней тени — поверх заливки, под обводкой */
-.inner-shadow{
-  position: absolute;
-  inset: 0;
-  display: none;               /* включаем, когда есть картинка */
-  pointer-events: none;
-  z-index: 2;                /* между fill (1) и stroke (2) */
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  background-position: 0 0;
-}
-.inner-shadow.active{ display:block; }
-
-/* адаптация для светлой сцены не нужна: тень отрисована как PNG */
-
-
-.cross{
-  position:absolute;
-  width: var(--cross-size, 28px);
-  height: var(--cross-size, 28px);
-  color: currentColor;
-  opacity: var(--cross-opacity, .9);
-}
-
-.cross::before,
-.cross::after{
-  content:"";
-  position:absolute;
-  left:50%; top:50%;
-  transform: translate(-50%, -50%);
-  background: currentColor;
-  border-radius: 2px;
-}
-
-.cross::before{
-  width: 100%;
-  height: var(--cross-thickness, 2px);
-}
-
-.cross::after{
-  height: 100%;
-  width: var(--cross-thickness, 2px);
-}
-
-/* Слой обводки силуэта — единая версия без конфликтов */
-.silhouette-stroke{
-  position: absolute;
-  inset: 0;
-  display: none;              /* по умолчанию скрыт */
-  pointer-events: none;
-  background: transparent !important;
-  z-index: 3;                 /* выше заливки */
-  will-change: transform, opacity;
-  contain: layout paint;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
-.silhouette-stroke > img{
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;    /* 1:1 с канвасом, без искажений масштаба */
-  display: block;
-  pointer-events: none;
-}
-
-.silhouette-stroke.active{ display:block; }
-
-/* Слой заливки силуэта — тоже единая версия */
-.silhouette-fill{
-  position: absolute;
-  inset: 0;
-  display: none;              /* по умолчанию скрыт */
-  pointer-events: none;
-
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  -webkit-mask-position: 0 0;
-
-  mask-repeat: no-repeat;
-  mask-size: 100% 100%;
-  mask-position: 0 0;
-  mask-mode: alpha;
-
-  z-index: 1;                 /* под обводкой */
-  will-change: transform, opacity;
-  contain: layout paint;
-  backface-visibility: hidden;
-}
-.silhouette-fill.active{ display:block; }
-
-
-/* уже есть .silhouette-fill — оставляем как есть */
-
-/* Лайв-обводка для «живой» композиции (до силуэта) */
-.composition.with-stroke .ch{
-  /* внешний штрих, цвет задаём переменной */
-  -webkit-text-stroke-width: var(--stroke-w, 8px);
-  -webkit-text-stroke-color: var(--stroke-color, #00ff88);
-  paint-order: stroke fill;
-}
-
-/* чтобы движение силуэта было таким же плавным */
-.overlay{ transition: transform .18s ease; }
-
-
-.controls {
-    display: flex
-;
-    gap: 5px;
-    margin-bottom: 5px;
-    flex-direction: row;
-    justify-content: space-between;
-    align-content: space-between;
-    flex-wrap: wrap;
-}
-
-.controls-main {
-    /* display: flex
-; */
-    /* justify-content: space-between; */
-    display: flex
-;
-    flex-wrap: wrap;
-    gap: 5px;
-    align-items: flex-start;
-    justify-content: space-between;
-
-    flex-direction: row;
-    width: 100%;
-}
-
-button, label { font: 600 14px/1.2 Inter, system-ui, sans-serif; }
-button {
-  display: flex;
-    align-items: center;
-  font-weight: 400;
-      font-variant: all-petite-caps;
-    letter-spacing: -0.2px;
-  border: 0; padding: 16px 16px; border-radius: 50px; cursor: pointer;
-  background: #111; color: #fff; 
-  transition: transform .06s ease, box-shadow .2s ease;
-      max-height: 40px;
-}
-button.secondary {
-    background: #fff;
-    color: #111;
-    border: 1px solid #c8c8c8;
-    display: flex
-;
-    align-items: center;
-    gap: 4px;
-    max-height: 40px;
-}
-button#btn {
-  width: 100%;
-      justify-content: center;
-}
-
-button.down {
-    background: #fff;
-    color: #111;
-    border: 1px solid #c8c8c8;
-    display: flex
-;
-    align-items: center;
-    gap: 4px;
-    max-height: 40px;
-  margin-left: auto;
-  width: 100%;
-        justify-content: center;
-  
-}
-
-.controls {
-  justify-content: space-between;
-}
-
-button#soon-label {
-    display: flex;
-    background: white;
-      align-items: center;
-    border-radius: 200px;
-    border: 1px solid #c8c8c8;
-    color: black;
-    font-weight: 400;
-    gap: 4px;
-  padding: 16px;
-  max-height: 40px;
-}
-
-.button-label {
-    border-radius: 200px;
-    background: #c8c8c8;
-    padding: 2px 4px 3px 4px;
-    display: none
-;
-    align-items: center;
-    align-content: center;
-    color: #f6f6f8;
-    font-size: 12px;
-}
-
-button:hover {
-      box-shadow: inset 0em 0 0.5em 0.3em #a1a1a194;
-}
-
-button#soon-label:hover {
-      box-shadow: none;
-}
-
-/* Модалка мелкого текста */
-.micro-grid {
-  grid-template-columns: 1fr; /* по одной колонке — компактно */
-}
-.micro-grid label input[type="text"]{
-  flex: 1;
-  min-width: 0;
-  height: 32px;
-  border: 1px solid #c8c8c8;
-  border-radius: 10px;
-  padding: 6px 10px;
-  font: 14px/1.2 Inter, system-ui, sans-serif;
-}
-
-.micro-positions{
-  margin: 0; padding: 0; border: 0;
-  display: grid; gap: 8px;
-}
-.micro-pos-buttons{
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-.micro-pos-buttons .micro-pos.active{
-  background:#111; color:#fff; border-color:#111;
-}
-
-/* управляем размерами чипов через CSS-переменную */
-.micro-row{ --micro-fs: 14px; font-size: var(--micro-fs); }
-.micro-row[data-size="md"]{ --micro-fs: 16px; }
-.micro-row[data-size="lg"]{ --micro-fs: 20px; }
-
-
-.stage {
-    aspect-ratio: 3 / 4 !important;
-    background: #fff;
-    border-radius: 18px;
-    display: grid;
-    place-items: top;
-    /* padding-bottom: 10px; */
-    position: relative;
-    overflow: hidden;
-    border: 1px solid #c8c8c8;         /* <— ключевое */
- width: auto;           /* <— ключевое */
-  max-width: 552px;      /* ты можешь поменять это на то, что хочешь на десктопе */
-   contain: layout paint size;  /* изолирует от «выпирающего» контента */
-}
-
-.stage.exporting { border: 0 !important; border-radius: 0 !important; }
-.stage.exporting .overlay { border-radius: 0 !important; }
-
-
-/* только в модалке градиента */
-input[type="color"]{
-  appearance: none;
-  -webkit-appearance: none;
-  border: 0;
-  outline: none;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  background: transparent;
-  border-radius: 30px;   /* скругление самого квадрата */
-  overflow: hidden;     /* важно для Safari: обрезает внутренний свотч */
-}
-
-#stage.masking {
-  filter: grayscale(1) contrast(2000%) brightness(0%);
-}
-
-/* WebKit: убираем внутренние отступы и рамку свотча */
-input[type="color"]::-webkit-color-swatch-wrapper{
-  padding: 0;
-}
-input[type="color"]::-webkit-color-swatch{
-  border: none;
-  border-radius: 30px;   /* чтобы цвет заливал ровно по радиусу */
-}
-
-/* Firefox: свотч и его рамка */
-input[type="color"]::-moz-color-swatch{
-  border: none;
-  border-radius: 30px;
-}
-
-/* опционально — свой фокус вместо системного */
-input[type="color"]:focus-visible{
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(0,0,0,.25);
-}
-
-.grain {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  /* Никаких display:none; просто прячем через [hidden] */
-  opacity: .08;
-  mix-blend-mode: multiply; /* можно заменить на overlay/soft-light по вкусу */
-  background-size: 20px 20px; /* будет переопределяться из JS */
-  background-repeat: repeat;
-  z-index: 0; /* должен быть над #bgLayer, но под .composition */
-}
-.grain[hidden] { display: none !important; }
-
-
-button#soon {
-    display: flex;
-    gap: 5px;
-}
-
-
-
-.caps-text {
-    padding-bottom: 8px;
-    margin: 0px;
-    font-size: 10px;
-    letter-spacing: 0.4px;
-    font-weight: 600;
-}
-.composition { width: 100%; position: relative; z-index: 1; }
-.line {
-  display: flex; flex-wrap: wrap; justify-content: center;
-  gap: -100px;          /* 1в1 как у тебя */
-  line-height: .66;
-  letter-spacing: -6px !important;
-  align-items: center;
-}
-/*.l1, .l2 { font-size: var(--fs, 48px); } */
-
-
-.ch {
-  display:inline-block; white-space: pre; transform-origin: 50% 50%;
-  color: #000;
-}
-
-
-/* обводка для случайных больших букв */
-.ch.outlined{
-    border: 0.05em solid currentColor;
-    border-radius: 500px;
-    padding: 0.15em 0.25em 0.20em 0.22em;
-    margin: -0.25em -0.2em -0.25em;
-    box-decoration-break: initial;
-}
-
-
-.composition {
-    width: 100%;
-    position: relative;
-    z-index: 1;
-    display: flex;
-    justify-content: center;
-    flex-direction: column;
-    flex-wrap: wrap;
-    align-content: center;
-    align-items: center;
-transition: transform .18s ease; 
-  max-width: 500px;
-      margin-left: auto;
-    margin-right: auto;
-  overflow: clip;
-}
-
-/* оверлей-результат скругления */
-.overlay {
-  position: absolute; inset: 0; z-index: 2;
-  display: block;         /* не grid, чтобы ничего не влиялo на размер */
-  background-color: #fff; /* чтобы html2canvas видел белую подложку при пороге */
-  border-radius: 18px;    /* визуальная рамка UI сохраняется */
-  background-image: none; /* по умолчанию пусто */
-   transition: transform .18s ease;   /* ← плавность как у .composition */
-  will-change: transform;     
-}
-.overlay[hidden] { display: none; }
-/*.overlay img { width: 100%; height: 100%; object-fit: cover; border-radius: 18px; } */
-
-footer {
-    margin-top: 15px;
-    opacity: .7;
-    font-size: 12px;
-    text-align: center;
-    display: flex
-;
-    justify-content: space-between;
-    align-items: center;
-}
-
-h1 {
-    padding: 0px;
-    margin: 0px;
-    font-size: 11px;
-    letter-spacing: 0.2px;
-    font-variant: all-petite-caps;
-    font-weight: 400;
-  flex: 1;
-  text-align: left;
-      line-height: 1;
-}
-
-.who {
-    padding: 0px;
-    margin: 0px;
-    font-size: 11px;
-    letter-spacing: 0.2px;
-    font-variant: all-petite-caps;
-    font-weight: 400;
-  color: #black;
-      line-height: 1;
-  
-}
-
-.who-1 {
-     padding: 0px;
-    margin: 0px;
-    font-size: 11px;
-    letter-spacing: 0.2px;
-    font-variant: all-petite-caps;
-    font-weight: 400;
-  color: #black;
-  text-align: left;
-  flex: 1;
-      line-height: 1;
-  
-}
-
-.who-2 {
-     padding: 0px 10px;
-    margin: 0px;
-    font-size: 11px;
-    letter-spacing: 0.2px;
-    font-variant: all-petite-caps;
-    font-weight: 400;
-  color: #black;
-  text-align: center;
-  flex: 1;
-      line-height: 1;
-  
-}
-
-.who-3 {
-     padding: 0px;
-    margin: 0px;
-    font-size: 11px;
-    letter-spacing: 0.2px;
-    font-variant: all-petite-caps;
-    font-weight: 400;
-  color: #black;
-  text-align: right;
-  flex: 1;
-      line-height: 1;
+  <style>
+    /* CSS */
+    :root { --bg:#f6f6f8; --ink:#0a0a0a; }
+
+    html, body { height: 100%; }
+
+    body {
+      background: #f8f8f8 !important;
+        margin: 0;
+        background: var(--bg);
+        font-family: Roboto, system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+        color: var(--ink);
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        align-items: start;
+        box-sizing: border-box;
+    }
+
+    .app {
+        max-width: 768px;
+        display: flex
+    ;
+        width: 100%;
+        height: 100%;
+        justify-content: space-between;
+    }
+
+    .left {
+        display: flex
+    ;
+        flex: 1;
+        flex-direction: column;
+        padding-right: 2%;
+        justify-content: space-between;
+    }
+
+    .bg{
+      position:absolute;
+      inset:0;
+      z-index:0;
+      background-position:center;
+      background-size:cover;
+      background-repeat:no-repeat;
+    }
+
+    .composition { color:#000; }
+    .stage.light .composition { color:#fff; }
+    .composition .ch { color: inherit !important; }
+
+    .line { transform-origin: center center; }
+
+    .micro{
+      font-size: 14px;
+      line-height: 1.2;
+      letter-spacing: .2px;
+      text-align:center;
+      margin: 6px 0 2px;
+      opacity:.9;
+    }
+    .micro[data-size="lg"]{ font-size:16px; }
+    .micro[data-size="md"]{ font-size:14px; }
+
+    .micro-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 90%;
+      flex-wrap: wrap;
+    }
+
+    .lang-switch{display:flex;gap:6px;margin:0px}
+    .lang-btn{background:#fff;color:#111;border:1px solid #c8c8c8;border-radius:999px;    padding: 6px 8px 8px;line-height:1}
+    .lang-btn.active{background: #b7b7b7;
+        color: #fff;
+        border-color: #b7b7b7;}
+
+
+    .micro-floating{
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(108% - 40px);
+      padding: 0;
       display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  column-gap: 3px;
-}
-  
+      justify-content: center;
+      z-index: 1;
+      pointer-events: none;
+      color: inherit;
+    }
+
+    .micro-floating.top{    top: 20px; }
+    .micro-floating.bottom{ bottom: 20px; }
+
+    .stage.light .micro-floating { color: #fff; }
+
+    .micro-floating .micro-chip { line-height: 1.1; }
+
+    .micro-chip{
+      line-height:1.2;
+      letter-spacing:.2px;
+      font-weight:bold;
+      opacity:.95;
+      white-space:nowrap;
+      text-transform: uppercase;
+      -webkit-text-stroke: thin;
+    }
+
+    .micro-row { text-transform: lowercase; }
 
 
-.header {
-    display: flex;
-    align-content: flex-start;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 0px;
-}
+
+    .action-popover{
+      position: fixed;
+      z-index: 10000;
+      background: #fff;
+      border: 1px solid #c8c8c8;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.15);
+      padding: 8px;
+      display: grid;
+      gap: 6px;
+    }
 
 
-.text-1 {
-    color: #0000007a;
-}
+    .action-popover[hidden]{ display:none !important; }
 
-textarea#custom {
-    border-radius: 200px;
-    padding: 9px 14px 4px 16px;
-    border: 1px solid #c8c8c8;
-    line-height: 1;
-    /* min-width: 80px !important; */
-    max-width: 120px !important;
-    /* font-size: 12px; */
-    /* height: 40px; */
-    max-height: 40px;
-    overflow: clip;
-}
+    .overlay.threshold-only{
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
 
-a {
-    color: black;
-  font-weight: 400;
-}
+    .inner-shadow{
+      position: absolute;
+      inset: 0;
+      display: none;
+      pointer-events: none;
+      z-index: 2;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+      background-position: 0 0;
+    }
+    .inner-shadow.active{ display:block; }
 
-.line-with-arrow {
-  position: relative;
-  width: 100px;
-  height: 2px;
-  background-color: black;
-}
+    .cross{
+      position:absolute;
+      width: var(--cross-size, 28px);
+      height: var(--cross-size, 28px);
+      color: currentColor;
+      opacity: var(--cross-opacity, .9);
+    }
 
-.line-with-arrow::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: -10px; /* Расстояние от конца линии до стрелки */
-  transform: translateY(-50%);
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 10px solid black; /* Цвет и размер стрелки */
-}
+    .cross::before,
+    .cross::after{
+      content:"";
+      position:absolute;
+      left:50%; top:50%;
+      transform: translate(-50%, -50%);
+      background: currentColor;
+      border-radius: 2px;
+    }
 
-  .mob-podval {
-    display: none;
-  }
+    .cross::before{
+      width: 100%;
+      height: var(--cross-thickness, 2px);
+    }
 
-@media (max-width: 768px) {
-  
-  /* На мобильном — пусть тоже работает как ожидается */
-@media (max-width: 768px){
-  .micro-floating{ width: calc(108% - 32px); }
-  .micro-floating.top{ top: 16px; }
-  .micro-floating.bottom{ bottom: 16px; }
-}
-  
-  
-footer {
-    margin-bottom: 15px;
-}
-  
-  .header {
-    margin-bottom: 15px;
-}
-  
-  .left {
-    padding-right: 0%;
+    .cross::after{
+      height: 100%;
+      width: var(--cross-thickness, 2px);
+    }
 
-}
-  
- .composition { max-width: 100%; }   /* вместо 1200px */
-  .stage      { max-width: 100%;
-  width: 100% !important;}  
-  /* сцена не шире экрана */
-    .line {
-  letter-spacing: -5px !important;
+    .silhouette-stroke{
+      position: absolute;
+      inset: 0;
+      display: none;
+      pointer-events: none;
+      background: transparent !important;
+      z-index: 3;
+      will-change: transform, opacity;
+      contain: layout paint;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+    }
 
-}
- 
- 
-  
-  .app {
-    flex-direction: column;
-    flex-wrap: nowrap;
-}
-  
-  button.down {
-    margin-left: inherit;
-    margin-right: inherit;
-  }
-  
+    .silhouette-stroke > img{
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+      display: block;
+      pointer-events: none;
+    }
+
+    .silhouette-stroke.active{ display:block; }
+
+    .silhouette-fill{
+      position: absolute;
+      inset: 0;
+      display: none;
+      pointer-events: none;
+
+      -webkit-mask-repeat: no-repeat;
+      -webkit-mask-size: 100% 100%;
+      -webkit-mask-position: 0 0;
+
+      mask-repeat: no-repeat;
+      mask-size: 100% 100%;
+      mask-position: 0 0;
+      mask-mode: alpha;
+
+      z-index: 1;
+      will-change: transform, opacity;
+      contain: layout paint;
+      backface-visibility: hidden;
+    }
+    .silhouette-fill.active{ display:block; }
+
+    .composition.with-stroke .ch{
+      -webkit-text-stroke-width: var(--stroke-w, 8px);
+      -webkit-text-stroke-color: var(--stroke-color, #00ff88);
+      paint-order: stroke fill;
+    }
+
+    .overlay{ transition: transform .18s ease; }
+
+
     .controls {
-    justify-content: center;
-  }
-  
-  button, button.secondary,  button.down {
-    font-size: 16px;
-    max-height: 60px;
-    padding: 16px;
-  }
-  
-  textarea#custom {
-       padding: 12px 16px 7px 18px;
-    font-size: 14px;
-    max-height: 60px;
-  }
-  
-  .who, h1 {
-    font-size: 11px;
-  }
-  
+        display: flex
+    ;
+        gap: 5px;
+        margin-bottom: 5px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    .controls-main {
+        display: flex
+    ;
+        flex-wrap: wrap;
+        gap: 5px;
+        align-items: flex-start;
+        justify-content: space-between;
+
+        flex-direction: row;
+        width: 100%;
+    }
+
+    button, label { font: 600 14px/1.2 Inter, system-ui, sans-serif; }
+    button {
+      display: flex;
+        align-items: center;
+      font-weight: 400;
+          font-variant: all-petite-caps;
+        letter-spacing: -0.2px;
+      border: 0; padding: 16px 16px; border-radius: 50px; cursor: pointer;
+      background: #111; color: #fff;
+      transition: transform .06s ease, box-shadow .2s ease;
+          max-height: 40px;
+    }
+    button.secondary {
+        background: #fff;
+        color: #111;
+        border: 1px solid #c8c8c8;
+        display: flex
+    ;
+        align-items: center;
+        gap: 4px;
+        max-height: 40px;
+    }
+    button#btn {
+      width: 100%;
+          justify-content: center;
+    }
+
+    button.down {
+        background: #fff;
+        color: #111;
+        border: 1px solid #c8c8c8;
+        display: flex
+    ;
+        align-items: center;
+        gap: 4px;
+        max-height: 40px;
+      margin-left: auto;
+      width: 100%;
+            justify-content: center;
+
+    }
+
+    .controls {
+      justify-content: space-between;
+    }
+
+    button#soon-label {
+        display: flex;
+        background: white;
+          align-items: center;
+        border-radius: 200px;
+        border: 1px solid #c8c8c8;
+        color: black;
+        font-weight: 400;
+        gap: 4px;
+      padding: 16px;
+      max-height: 40px;
+    }
+
+    .button-label {
+        border-radius: 200px;
+        background: #c8c8c8;
+        padding: 2px 4px 3px 4px;
+        display: none
+    ;
+        align-items: center;
+        align-content: center;
+        color: #f6f6f8;
+        font-size: 12px;
+    }
+
+    button:hover {
+          box-shadow: inset 0em 0 0.5em 0.3em #a1a1a194;
+    }
+
+    button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+        box-shadow: none;
+    }
+    button:disabled:hover {
+        box-shadow: none;
+    }
+
+    button#soon-label:hover {
+          box-shadow: none;
+    }
+
+    .micro-grid {
+      grid-template-columns: 1fr;
+    }
+    .micro-grid label input[type="text"]{
+      flex: 1;
+      min-width: 0;
+      height: 32px;
+      border: 1px solid #c8c8c8;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font: 14px/1.2 Inter, system-ui, sans-serif;
+    }
+
+    .micro-positions{
+      margin: 0; padding: 0; border: 0;
+      display: grid; gap: 8px;
+    }
+    .micro-pos-buttons{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .micro-pos-buttons .micro-pos.active{
+      background:#111; color:#fff; border-color:#111;
+    }
+
+    .micro-row{ --micro-fs: 14px; font-size: var(--micro-fs); }
 
 
-}
+    .stage {
+        aspect-ratio: 3 / 4 !important;
+        background: #fff;
+        border-radius: 18px;
+        display: grid;
+        place-items: top;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #c8c8c8;
+     width: auto;
+      max-width: 552px;
+       contain: layout paint size;
+    }
+
+    .stage.exporting { border: 0 !important; border-radius: 0 !important; }
+    .stage.exporting .overlay { border-radius: 0 !important; }
 
 
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    /* background: rgba(0, 0, 0, .35); */
-    display: grid
-;
-    place-items: center;
-    z-index: 9999;
-    padding: 16px;
-    align-content: space-between;
-    width: 100%;
-    height: 100%;
-    /* left: -2%; */
-    bottom: 20p;
-    /* top: -1%; */
-    justify-content: start;
-    padding-left: clamp(30px, 1vw, 400px) !important;
-    box-sizing: border-box;
-}
-.modal{
-    background: #fff;
-    border: 1px solid #c8c8c8;
-    border-radius: 18px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
-    display: grid;
-    gap: 5px;
-    padding: 22px;
-    /* scale: 0.8; */
-    max-width: 450px;
-}
-.modal-head{ display:flex; align-items:center; justify-content:space-between; }
-.modal-title{ font-size:14px; font-weight:600; letter-spacing:.2px; }
-.icon-btn{
-  border:1px solid #c8c8c8; border-radius:10px; background:#fff; cursor:pointer;
-  padding: 6px 10px; line-height:1;
-  display: none;
-}
-input[type="color"] {
-  border: solid 1px lightgray !important;
-  
-}
+    input[type="color"]{
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      outline: none;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      background: transparent;
+      border-radius: 30px;
+      overflow: hidden;
+    }
 
-.modal-body{
-  display:grid; grid-template-columns: 1fr 1fr; gap:10px;
-}
-.modal-body label{
-  font-size:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;
-}
-.modal-body input[type="color"]{ width:32px; height:32px; padding:0; border:0; background:none; }
-.modal-body input[type="range"]{ width:140px; }
-.modal-foot{
-  display:flex; justify-content:flex-end; gap:8px;
-}
-#gradDone{ background:#111; color:#fff; border:0; border-radius:60px; padding:10px 14px; cursor:pointer; }
+    #stage.masking {
+      filter: grayscale(1) contrast(2000%) brightness(0%);
+    }
 
-@media (max-width:480px){
-  .modal-body{ grid-template-columns: 1fr; }
-}
+    input[type="color"]::-webkit-color-swatch-wrapper{
+      padding: 0;
+    }
+    input[type="color"]::-webkit-color-swatch{
+      border: none;
+      border-radius: 30px;
+    }
 
-/* Скрывать модалку, когда стоит hidden */
-.modal-backdrop[hidden] { 
-  display: none !important; 
-}
+    input[type="color"]::-moz-color-swatch{
+      border: none;
+      border-radius: 30px;
+    }
 
-/* Можно и глобально, чтобы другие элементы с hidden не «пробивались» */
-[hidden] { 
-  display: none !important; 
-}
-</style>
+    input[type="color"]:focus-visible{
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(0,0,0,.25);
+    }
 
+    .grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: .08;
+      mix-blend-mode: multiply;
+      background-size: 20px 20px;
+      background-repeat: repeat;
+      z-index: 0;
+    }
+    .grain[hidden] { display: none !important; }
+
+    button#soon {
+        display: flex;
+        gap: 5px;
+    }
+
+    .caps-text {
+        padding-bottom: 8px;
+        margin: 0px;
+        font-size: 10px;
+        letter-spacing: 0.4px;
+        font-weight: 600;
+    }
+    .composition { width: 100%; position: relative; z-index: 1; }
+    .line {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: -100px;
+      line-height: .66;
+      letter-spacing: -6px !important;
+      align-items: center;
+    }
+
+    .ch {
+      display:inline-block; white-space: pre; transform-origin: 50% 50%;
+      color: #000;
+    }
+
+    .ch.outlined{
+        border: 0.05em solid currentColor;
+        border-radius: 500px;
+        padding: 0.15em 0.25em 0.20em 0.22em;
+        margin: -0.25em -0.2em -0.25em;
+        box-decoration-break: initial;
+    }
+
+    .composition {
+        width: 100%;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        flex-direction: column;
+        flex-wrap: wrap;
+        align-content: center;
+        align-items: center;
+    transition: transform .18s ease;
+      max-width: 500px;
+          margin-left: auto;
+        margin-right: auto;
+      overflow: clip;
+    }
+
+    .overlay {
+      position: absolute; inset: 0; z-index: 2;
+      display: block;
+      background-color: #fff;
+      border-radius: 18px;
+      background-image: none;
+       transition: transform .18s ease;
+      will-change: transform;
+    }
+    .overlay[hidden] { display: none; }
+
+    footer {
+        margin-top: 15px;
+        opacity: .7;
+        font-size: 12px;
+        text-align: center;
+        display: flex
+    ;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    h1 {
+        padding: 0px;
+        margin: 0px;
+        font-size: 11px;
+        letter-spacing: 0.2px;
+        font-variant: all-petite-caps;
+        font-weight: 400;
+      flex: 1;
+      text-align: left;
+          line-height: 1;
+    }
+
+    .who {
+        padding: 0px;
+        margin: 0px;
+        font-size: 11px;
+        letter-spacing: 0.2px;
+        font-variant: all-petite-caps;
+        font-weight: 400;
+      color: black;
+          line-height: 1;
+
+    }
+
+    .who-1 {
+         padding: 0px;
+        margin: 0px;
+        font-size: 11px;
+        letter-spacing: 0.2px;
+        font-variant: all-petite-caps;
+        font-weight: 400;
+      color: black;
+      text-align: left;
+      flex: 1;
+          line-height: 1;
+
+    }
+
+    .who-2 {
+         padding: 0px 10px;
+        margin: 0px;
+        font-size: 11px;
+        letter-spacing: 0.2px;
+        font-variant: all-petite-caps;
+        font-weight: 400;
+      color: black;
+      text-align: center;
+      flex: 1;
+          line-height: 1;
+
+    }
+
+    .who-3 {
+         padding: 0px;
+        margin: 0px;
+        font-size: 11px;
+        letter-spacing: 0.2px;
+        font-variant: all-petite-caps;
+        font-weight: 400;
+      color: black;
+      text-align: right;
+      flex: 1;
+          line-height: 1;
+          display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      column-gap: 3px;
+    }
+
+    .header {
+        display: flex;
+        align-content: flex-start;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 0px;
+    }
+
+    .text-1 {
+        color: #0000007a;
+    }
+
+    textarea#custom {
+        border-radius: 200px;
+        padding: 9px 14px 4px 16px;
+        border: 1px solid #c8c8c8;
+        line-height: 1;
+        max-width: 120px !important;
+        max-height: 40px;
+        overflow: clip;
+    }
+
+    a {
+        color: black;
+      font-weight: 400;
+    }
+
+    .line-with-arrow {
+      position: relative;
+      width: 100px;
+      height: 2px;
+      background-color: black;
+    }
+
+    .line-with-arrow::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -10px;
+      transform: translateY(-50%);
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 10px solid black;
+    }
+
+      .mob-podval {
+        display: none;
+      }
+
+    @media (max-width: 768px) {
+
+    @media (max-width: 768px){
+      .micro-floating{ width: calc(108% - 32px); }
+      .micro-floating.top{ top: 16px; }
+      .micro-floating.bottom{ bottom: 16px; }
+    }
+
+
+    footer {
+        margin-bottom: 15px;
+    }
+
+      .header {
+        margin-bottom: 15px;
+    }
+
+      .left {
+        padding-right: 0%;
+
+    }
+
+     .composition { max-width: 100%; }
+      .stage      { max-width: 100%;
+      width: 100% !important;}
+        .line {
+      letter-spacing: -5px !important;
+
+    }
+
+      .app {
+        flex-direction: column;
+        flex-wrap: nowrap;
+    }
+
+      button.down {
+        margin-left: inherit;
+        margin-right: inherit;
+      }
+
+        .controls {
+        justify-content: center;
+      }
+
+      button, button.secondary,  button.down {
+        font-size: 16px;
+        max-height: 60px;
+        padding: 16px;
+      }
+
+      textarea#custom {
+           padding: 12px 16px 7px 18px;
+        font-size: 14px;
+        max-height: 60px;
+      }
+
+      .who, h1 {
+        font-size: 11px;
+      }
+    }
+
+
+    .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: grid
+    ;
+        place-items: center;
+        z-index: 9999;
+        padding: 16px;
+        align-content: space-between;
+        width: 100%;
+        height: 100%;
+        justify-content: start;
+        padding-left: clamp(30px, 1vw, 400px) !important;
+        box-sizing: border-box;
+    }
+    .modal{
+        background: #fff;
+        border: 1px solid #c8c8c8;
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+        display: grid;
+        gap: 5px;
+        padding: 22px;
+        max-width: 450px;
+    }
+    .modal-head{ display:flex; align-items:center; justify-content:space-between; }
+    .modal-title{ font-size:14px; font-weight:600; letter-spacing:.2px; }
+    .icon-btn{
+      border:1px solid #c8c8c8; border-radius:10px; background:#fff; cursor:pointer;
+      padding: 6px 10px; line-height:1;
+      display: none;
+    }
+    input[type="color"] {
+      border: solid 1px lightgray !important;
+
+    }
+
+    .modal-body{
+      display:grid; grid-template-columns: 1fr 1fr; gap:10px;
+    }
+    .modal-body label{
+      font-size:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+    .modal-body input[type="color"]{ width:32px; height:32px; padding:0; border:0; background:none; }
+    .modal-body input[type="range"]{ width:140px; }
+    .modal-foot{
+      display:flex; justify-content:flex-end; gap:8px;
+    }
+    #gradDone{ background:#111; color:#fff; border:0; border-radius:60px; padding:10px 14px; cursor:pointer; }
+
+    @media (max-width:480px){
+      .modal-body{ grid-template-columns: 1fr; }
+    }
+
+    .modal-backdrop[hidden] {
+      display: none !important;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* --- Gamification Styles --- */
+    .cringe-container {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .cringe-bar-container {
+      flex-grow: 1;
+      background-color: #e0e0e0;
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      height: 40px;
+      border: 1px solid #c8c8c8;
+    }
+    .cringe-bar-progress {
+      height: 100%;
+      width: 0%; /* Set by JS */
+    background: linear-gradient(90deg, #9cff00, #ffa33b);
+      border-radius: 12px 0 0 12px;
+      transition: width 0.5s ease-in-out;
+    }
+    .cringe-label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: black;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+          text-transform: uppercase;
+    }
+    #ultimateBtn {
+      padding: 6px 16px;
+      height: 40px;
+      max-height: 40px;
+    background: linear-gradient(90deg, #ff8499, #ff8499);
+      color: black;
+      border: none;
+      font-weight: bold;
+      animation: pulse 1.5s infinite;
+
+    }
+    #ultimateBtn[hidden] {
+        display: none;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 64, 129, 0.7); }
+        70% { transform: scale(1.05); box-shadow: 0 0 10px 10px rgba(255, 64, 129, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 64, 129, 0); }
+    }
+    .cringe-points-popup {
+      position: fixed;
+      z-index: 10001;
+      pointer-events: none;
+      font-size: 20px;
+      font-weight: bold;
+      color: #28a745;
+      text-shadow: 0 0 1px rgba(255,255,255,0.7);
+      animation: fly-out 1s ease-out forwards;
+      white-space: nowrap;
+      left: 0;
+      top: 0;
+    }
+
+    @keyframes fly-out {
+      0% {
+        transform: translate(-50%, -50%) scale(0.5);
+        opacity: 1;
+      }
+            30% {
+        transform: translate(-50%, -90%) scale(0.8);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(-50%, -250%) scale(1.2);
+        opacity: 0;
+      }
+    }
+    
+    /* --- Button Loading Indicator --- */
+    button.loading > * { visibility: hidden; }
+    button.loading { position: relative; }
+    button.loading::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        top: 50%;
+        left: 50%;
+        margin: -8px 0 0 -8px;
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+        border-style: solid;
+        border-width: 2px;
+    }
+    button.secondary.loading::after {
+        border-color: #c8c8c8;
+        border-top-color: #111;
+    }
+    button:not(.secondary).loading::after, button#ultimateBtn.loading::after {
+        border-color: rgba(0,0,0,0.5);
+        border-top-color: #000;
+    }
+     @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+  </style>
