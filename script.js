@@ -365,7 +365,7 @@ function readBaseLH(el){
   return clamp(ratio, 0.6, 2.4);
 }
 
-function applyMainZoom(){
+async function applyMainZoom(){
   if (isRounded){
     overlay.style.transform = `translateY(${lastShiftPx}px) scale(${mainZoom})`;
   } else {
@@ -384,6 +384,10 @@ function applyMainZoom(){
       line2.style.transform   = `scale(${mainZoom})`;
       line2.style.lineHeight  = lh2;
       line2.style.transformOrigin = 'center center';
+    }
+    
+    if (innerShadow.classList.contains('active')) {
+      await applyInnerShadow(false);
     }
   }
 }
@@ -747,46 +751,81 @@ async function erodeMaskURL(maskURL, shrinkPx){
   return c.toDataURL('image/png');
 }
 
-async function buildInnerShadowPNG(maskURL, {color, alpha, blur, inset, offsetX=0, offsetY=0}){
-  if (!maskURL) return '';
+async function buildInnerShadowPNG(maskURL, {color, alpha, blur, inset, offsetX=0, offsetY=0}) {
+    if (!maskURL) return '';
 
-  const erodedURL = inset > 0 ? await erodeMaskURL(maskURL, inset) : maskURL;
-  const srcImg = await loadImage(maskURL);
-  const eroImg = await loadImage(erodedURL);
-  const w = srcImg.width, h = srcImg.height;
+    const erodedURL = inset > 0 ? await erodeMaskURL(maskURL, inset) : maskURL;
+    const srcImg = await loadImage(maskURL);
+    const eroImg = await loadImage(erodedURL);
+    const w = srcImg.width, h = srcImg.height;
 
-  const ring = document.createElement('canvas'); ring.width = w; ring.height = h;
-  const rctx = ring.getContext('2d');
-  rctx.drawImage(srcImg, 0, 0);
-  rctx.globalCompositeOperation = 'destination-out';
-  rctx.drawImage(eroImg, 0, 0);
-  rctx.globalCompositeOperation = 'source-over';
+    // Create the "ring" shape to be blurred
+    const ring = document.createElement('canvas');
+    ring.width = w; ring.height = h;
+    const rctx = ring.getContext('2d');
+    rctx.drawImage(srcImg, 0, 0);
+    rctx.globalCompositeOperation = 'destination-out';
+    rctx.drawImage(eroImg, 0, 0);
+    rctx.globalCompositeOperation = 'source-over';
 
-  const out = document.createElement('canvas'); out.width = w; out.height = h;
-  const octx = out.getContext('2d');
+    let imageToDraw = ring; // By default, draw the un-blurred ring
 
-  octx.fillStyle = color;
-  octx.fillRect(0,0,w,h);
+    // If blur is needed, create a blurred version via a robust SVG filter
+    if (blur > 0) {
+        const ringURL = ring.toDataURL();
+        const stdDeviation = blur / 2; // SVG blur parameter is roughly radius/2
 
-  octx.globalCompositeOperation = 'destination-in';
-  octx.filter = blur > 0 ? `blur(${blur}px)` : 'none';
-  octx.drawImage(ring, offsetX, offsetY);
-  octx.filter = 'none';
-  octx.globalCompositeOperation = 'source-over';
+        // Use a filter region larger than the canvas to prevent the blur from being clipped
+        const svgString = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+        <defs>
+          <filter id="shadow-blur" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="${stdDeviation}" />
+          </filter>
+        </defs>
+        <image href="${ringURL}" width="${w}" height="${h}" filter="url(#shadow-blur)" />
+      </svg>
+    `;
+        try {
+            // Encode the SVG and load it as an image. This is highly compatible.
+            const svgURL = 'data:image/svg+xml;base64,' + btoa(svgString);
+            imageToDraw = await loadImage(svgURL);
+        } catch (e) {
+            console.error("Failed to create SVG blur, falling back to no blur.", e);
+            imageToDraw = ring; // Fallback to un-blurred on error
+        }
+    }
 
-  if (alpha < 1){
+    // Create the final output canvas
+    const out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    const octx = out.getContext('2d');
+
+    // Step 1: Fill with shadow color
+    octx.fillStyle = color;
+    octx.fillRect(0, 0, w, h);
+
+    // Step 2: Mask with the (potentially blurred) ring shape
     octx.globalCompositeOperation = 'destination-in';
-    octx.fillStyle = `rgba(0,0,0,${alpha})`;
-    octx.fillRect(0,0,w,h);
+    octx.drawImage(imageToDraw, offsetX, offsetY);
     octx.globalCompositeOperation = 'source-over';
-  }
 
-  octx.globalCompositeOperation = 'destination-in';
-  octx.drawImage(srcImg, 0, 0);
-  octx.globalCompositeOperation = 'source-over';
+    // Step 3: Apply overall transparency if needed
+    if (alpha < 1) {
+        octx.globalCompositeOperation = 'destination-in';
+        octx.fillStyle = `rgba(0,0,0,${alpha})`;
+        octx.fillRect(0, 0, w, h);
+        octx.globalCompositeOperation = 'source-over';
+    }
 
-  return out.toDataURL('image/png');
+    // Step 4: Mask with the original silhouette to create the "inner" effect
+    octx.globalCompositeOperation = 'destination-in';
+    octx.drawImage(srcImg, 0, 0);
+    octx.globalCompositeOperation = 'source-over';
+
+    return out.toDataURL('image/png');
 }
+
 
 function openShadow(){
   shadowModal.hidden = false;
@@ -1694,13 +1733,13 @@ strokeEnabledInput?.addEventListener('change', async ()=>{
 });
 
 
-btnZoomIn?.addEventListener('click', ()=>{
+btnZoomIn?.addEventListener('click', async ()=>{
   mainZoom = clampZoom( +(mainZoom + ZOOM_STEP).toFixed(2) );
-  applyMainZoom();
+  await applyMainZoom();
 });
-btnZoomOut?.addEventListener('click', ()=>{
+btnZoomOut?.addEventListener('click', async ()=>{
   mainZoom = clampZoom( +(mainZoom - ZOOM_STEP).toFixed(2) );
-  applyMainZoom();
+  await applyMainZoom();
 });
 
 const btnBgPin = document.getElementById('bgPin');
