@@ -1,4 +1,3 @@
-
 // === ДАННЫЕ ===
 const PHRASES_RU = [
   ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
@@ -1992,10 +1991,6 @@ async function performUltimate() {
     await applySilhouetteStroke();
     await sleep(250);
 
-    // 7. Shadow
-    await randomizeAndApplyShadow();
-    await sleep(250);
-    
     // 8. Color
     currentInk = randomHex();
     if (isRounded && silhouetteFill.classList.contains('active')) {
@@ -2009,6 +2004,10 @@ async function performUltimate() {
     if (isRounded) {
         silhouetteFill.style.backgroundImage = buildThreeStopGradient();
     }
+    await sleep(250);
+    
+    // 7. Shadow
+    await randomizeAndApplyShadow();
     await sleep(250);
 
     currentCringe = 0;
