@@ -836,14 +836,26 @@ function openShadow(){
   shadowOffsetYInp.value = shadowParams.offsetY;
 }
 
-async function randomizeAndApplyShadow() {
+function randomizeShadowParams() {
     shadowParams.color = randomHex();
     shadowParams.alpha = (rand(25, 85) / 100);
     shadowParams.blur = rand(10, 50);
     shadowParams.inset = rand(5, 30);
     shadowParams.offsetX = rand(-25, 25);
     shadowParams.offsetY = rand(-25, 25);
-    await applyInnerShadow(false); // don't read from inputs
+}
+
+async function randomizeAndApplyShadow() {
+    randomizeShadowParams();
+    // Update the input fields to match the new random parameters
+    shadowColorInp.value = shadowParams.color;
+    shadowAlphaInp.value = Math.round(shadowParams.alpha * 100);
+    shadowBlurInp.value  = shadowParams.blur;
+    shadowInsetInp.value = shadowParams.inset;
+    shadowOffsetXInp.value = shadowParams.offsetX;
+    shadowOffsetYInp.value = shadowParams.offsetY;
+    // Apply the shadow using the parameters object
+    await applyInnerShadow(false);
 }
 
 
@@ -879,10 +891,32 @@ function clearInnerShadow(){
   innerShadow.style.backgroundImage = '';
 }
 
-shadowToggle?.addEventListener('click', async () => {
+shadowToggle?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+
     if (isFirstShadowClick) {
-        await randomizeAndApplyShadow();
-        isFirstShadowClick = false;
+        btn.disabled = true;
+        btn.classList.add('loading');
+        try {
+            // First attempt to apply shadow and update inputs
+            await randomizeAndApplyShadow();
+            
+            // Programmatically "click" the Apply button. This mimics the user's
+            // manual action that forces the render on mobile.
+            shadowApply.click(); 
+            
+            // Give the browser a moment to process the render triggered by the click.
+            await sleep(100);
+
+            isFirstShadowClick = false;
+        } catch (err) {
+            console.error("Error applying random shadow", err);
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            openShadow(); // Now open the modal with the correct values shown
+        }
     } else {
         openShadow();
     }
@@ -1990,6 +2024,16 @@ async function performUltimate() {
     strokeWidthPx = rand(8, 20);
     await applySilhouetteStroke();
     await sleep(250);
+    
+    // 7. Shadow
+    // First apply attempt + update inputs.
+    await randomizeAndApplyShadow();
+    // Programmatically "click" apply to force re-render, mimicking manual fix.
+    shadowApply.click(); 
+    isFirstShadowClick = false; // Sync state
+
+    // Give browser a moment to render the shadow from the synthetic click.
+    await sleep(300); // A bit longer here due to many preceding operations.
 
     // 8. Color
     currentInk = randomHex();
@@ -2004,10 +2048,6 @@ async function performUltimate() {
     if (isRounded) {
         silhouetteFill.style.backgroundImage = buildThreeStopGradient();
     }
-    await sleep(250);
-    
-    // 7. Shadow
-    await randomizeAndApplyShadow();
     await sleep(250);
 
     currentCringe = 0;
