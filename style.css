@@ -1,4 +1,4 @@
-  <style>
+ <style>
 /* CSS */
 :root { --bg:#f6f6f8; --ink:#0a0a0a; }
 
@@ -598,12 +598,13 @@ h1 {
 
 textarea#custom {
     border-radius: 200px;
-    padding: 9px 44px 4px 16px;
+    padding: 8px 44px 4px 16px;
     border: 1px solid #c8c8c8;
     line-height: 1;
     max-width: 120px !important;
     max-height: 40px;
     overflow: clip;
+    height: auto;
 }
 
 #aiGenerate {
@@ -698,10 +699,9 @@ footer {
   }
 
   textarea#custom {
-       padding: 10px 44px 7px 18px;
+       padding: 8px 44px 7px 18px;
     font-size: 14px;
     max-height: 40px;
-    height: 21px;
   }
 
   .who, h1 {
