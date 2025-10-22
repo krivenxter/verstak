@@ -2178,7 +2178,7 @@ window.addEventListener('load', () => {
     generate();
     
     // Start auto-generation loop
-    autoGenerateInterval = setInterval(generate, 450);
+    autoGenerateInterval = setInterval(generate, 400);
 
     window.addEventListener('resize', applyCompositionShift);
 
