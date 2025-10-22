@@ -19,17 +19,15 @@ body {
 
 .app {
     max-width: 768px;
-    display: flex
-;
+    display: flex;
     width: 100%;
     height: 100%;
     justify-content: space-between;
 }
 
 .left {
-    display: flex
-;
-    flex: 1;
+    display: flex;
+    flex: 0.51;
     flex-direction: column;
     padding-right: 2%;
     justify-content: space-between;
@@ -376,9 +374,14 @@ button#soon-label:hover {
     position: relative;
     overflow: hidden;
     border: 1px solid #c8c8c8;
- width: auto;
-  max-width: 552px;
-   contain: layout paint size;
+    width: 100%;
+    max-width: 60vh;
+    contain: layout paint size;
+    margin-top: auto;
+    margin-bottom: auto;
+    flex: 1;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .stage.exporting { border: 0 !important; border-radius: 0 !important; }
@@ -587,14 +590,34 @@ h1 {
     color: #0000007a;
 }
 
+.custom-text-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 textarea#custom {
     border-radius: 200px;
-    padding: 9px 14px 4px 16px;
+    padding: 9px 44px 4px 16px;
     border: 1px solid #c8c8c8;
     line-height: 1;
     max-width: 120px !important;
     max-height: 40px;
     overflow: clip;
+}
+
+#aiGenerate {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px;
+  height: 32px;
+  width: 32px;
+  min-width: 32px;
+  max-height: 32px;
+  border-radius: 50%;
+  display: none;
 }
 
 a {
@@ -670,14 +693,15 @@ footer {
 
   button, button.secondary,  button.down {
     font-size: 16px;
-    max-height: 60px;
+    max-height: 40px;
     padding: 16px;
   }
 
   textarea#custom {
-       padding: 12px 16px 7px 18px;
+       padding: 10px 44px 7px 18px;
     font-size: 14px;
-    max-height: 60px;
+    max-height: 40px;
+    height: 21px;
   }
 
   .who, h1 {
@@ -753,6 +777,7 @@ input[type="color"] {
     display: flex;
     gap: 10px;
     align-items: center;
+  padding-bottom: 18px;
 }
 
 .cringe-bar-container {
