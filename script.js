@@ -1,3 +1,4 @@
+
 // === ДАННЫЕ ===
 const PHRASES_RU = [
   ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
@@ -301,7 +302,7 @@ remove: 'Remove',
 const I18N_MAP = [
   ['.header h1','title'],
   ['#btn','generate'],
-  ['#custom::placeholder','placeholder'],
+  ['#custom', 'placeholder', 'placeholder'],
   ['#moveUp','up'],
   ['#moveDown','down'],
   ['#gradToggle','gradient'],
@@ -451,8 +452,10 @@ function applyLang(lang){
     const el = document.querySelector(sel);
     if (!el) return;
 
-    if (sel.endsWith('::placeholder')){
-      setPlaceholder(el, t[key]);
+    if (sel.endsWith('::placeholder')){ // This case is now obsolete but kept for safety
+      const realSel = sel.replace('::placeholder','');
+      const realEl = document.querySelector(realSel);
+      setPlaceholder(realEl, t[key]);
     } else if (attr) {
       el.setAttribute(attr, t[key]);
     } else {
@@ -1632,7 +1635,6 @@ function toggleCrosses(){
 }
 
 async function generateAiText() {
-    stopAutoGeneration();
     if (!btnAiGenerate) return;
     btnAiGenerate.disabled = true;
     btnAiGenerate.classList.add('loading');
