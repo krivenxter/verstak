@@ -34,6 +34,16 @@ const FONT_POOL = [
 
 const SANS_POOL = [ 'Inter' ];
 
+// === АВТО-ГЕНЕРАЦИЯ ===
+let autoGenerateInterval = null;
+const stopAutoGeneration = () => {
+  if (autoGenerateInterval) {
+    clearInterval(autoGenerateInterval);
+    autoGenerateInterval = null;
+  }
+};
+
+
 // === ШОРТКАТЫ ===
 
 // --- Модалка мелкого текста ---
@@ -59,6 +69,7 @@ const silhouetteFill   = document.getElementById('silhouetteFill');
 const silhouetteStroke = document.getElementById('silhouetteStroke');
 
 const btnGenerate   = document.getElementById('btn');
+const btnAiGenerate = document.getElementById('aiGenerate');
 const btnRound      = document.getElementById('round');
 const btnDownload   = document.getElementById('download');
 const btnMoveUp     = document.getElementById('moveUp');
@@ -225,6 +236,7 @@ apply: 'Применить',
 remove: 'Убрать',
     cringe_bar: 'Кринж: {current}/{max}',
     ultimate: 'Ультануть',
+    ai_generate_label: 'Сгенерировать с ИИ',
   },
   en: {
     title: 'Typo Composition Generator',
@@ -282,6 +294,7 @@ apply: 'Apply',
 remove: 'Remove',
     cringe_bar: 'Cringe: {current}/{max}',
     ultimate: 'Ultimate',
+    ai_generate_label: 'Generate with AI',
   }
 };
 
@@ -303,8 +316,8 @@ const I18N_MAP = [
   ['#round','silhouette'],
   ['#undoAll','undo'],
   ['#download','download'],
-['.who-3','credit_label'],
-['a','credit_name'],
+  ['.who-3','credit_label'],
+  ['a','credit_name'],
   ['.who-1 a','questions'],
   ['#bgRandom > span','bg_random'],
   ['#shadowToggle', 'shadow'],
@@ -327,17 +340,18 @@ const I18N_MAP = [
   ['label[for="strokeWidth"]','stroke_width'],
   ['label[for="strokeEnabled"]','stroke_enabled'],
   ['#microTitle','micro_title'],
-['label[for="microInput"]','micro_text'],
-['#microPosLabel','micro_position'],
-['.micro-pos[data-pos="top-stage"]','pos_top_stage'],
-['.micro-pos[data-pos="bottom-stage"]','pos_bottom_stage'],
-['.micro-pos[data-pos="above-line1"]','pos_above_line1'],
-['.micro-pos[data-pos="below-line2"]','pos_below_line2'],
-['label[for="microSize"]','micro_size'],
-['#microApply','apply'],
-['#microClear','remove'],
-['#microDone','done'],
-['#ultimateBtn > span', 'ultimate']
+  ['label[for="microInput"]','micro_text'],
+  ['#microPosLabel','micro_position'],
+  ['.micro-pos[data-pos="top-stage"]','pos_top_stage'],
+  ['.micro-pos[data-pos="bottom-stage"]','pos_bottom_stage'],
+  ['.micro-pos[data-pos="above-line1"]','pos_above_line1'],
+  ['.micro-pos[data-pos="below-line2"]','pos_below_line2'],
+  ['label[for="microSize"]','micro_size'],
+  ['#microApply','apply'],
+  ['#microClear','remove'],
+  ['#microDone','done'],
+  ['#ultimateBtn > span', 'ultimate'],
+  ['#aiGenerate', 'ai_generate_label', 'aria-label']
 ];
 
 // === ЗУМ ОСНОВНОЙ КОМПОЗИЦИИ ===
@@ -433,13 +447,15 @@ function applyLang(lang){
   localStorage.setItem('lang', lang);
   const t = I18N[lang];
 
-  I18N_MAP.forEach(([sel, key])=>{
+  I18N_MAP.forEach(([sel, key, attr])=>{
+    const el = document.querySelector(sel);
+    if (!el) return;
+
     if (sel.endsWith('::placeholder')){
-      const realSel = sel.replace('::placeholder','');
-      setPlaceholder(document.querySelector(realSel), t[key]);
+      setPlaceholder(el, t[key]);
+    } else if (attr) {
+      el.setAttribute(attr, t[key]);
     } else {
-      const el = document.querySelector(sel);
-      if (!el) return;
       if (el.childElementCount === 0 || el.tagName === 'SPAN') {
         el.textContent = t[key];
       } else {
@@ -1615,8 +1631,55 @@ function toggleCrosses(){
   resetRoundState();
 }
 
+async function generateAiText() {
+    stopAutoGeneration();
+    if (!btnAiGenerate) return;
+    btnAiGenerate.disabled = true;
+    btnAiGenerate.classList.add('loading');
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const langName = currentLang === 'ru' ? 'Russian' : 'English';
+        const prompt = `Generate two short, impactful words for a typographic poster with a 'cyberpunk future' theme. The words should be in ${langName}. Provide only the two words separated by a newline. Do not add any other formatting or explanation.`;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        
+        const text = response.text;
+        
+        if (text && custom) {
+            custom.value = text.trim();
+            generate();
+        }
+
+    } catch (error) {
+        console.error("AI text generation failed:", error);
+        if (custom) {
+             const fallbackText = currentLang === 'ru' ? "ОШИБКА\nAPI" : "API\nERROR";
+             custom.value = fallbackText;
+             generate();
+        }
+    } finally {
+        btnAiGenerate.disabled = false;
+        btnAiGenerate.classList.remove('loading');
+    }
+}
+
 // === СОБЫТИЯ UI ===
+// Stop auto-generation on any user interaction with a button (except language switch)
+document.body.addEventListener('click', (e) => {
+  const button = e.target.closest('button');
+  if (button && !button.closest('.lang-switch')) {
+    stopAutoGeneration();
+  }
+}, true); // Use capture phase to handle it first
+
 btnGenerate?.addEventListener('click', generate);
+
+btnAiGenerate?.addEventListener('click', generateAiText);
+
 btnRound?.addEventListener('click', roundCorners);
 btnDownload?.addEventListener('click', downloadPng);
 btnUndo?.addEventListener('click', () => undoAll({ preserveCurrentState: false }));
@@ -2072,6 +2135,7 @@ function awardCringePoints(button, event) {
     bgRandom: 88, bgBtn: 88, strokeToggle: 88, shadowToggle: 88,
     moveUp: 40, moveDown: 40, zoomIn: 40, zoomOut: 40,
     btn: 40, invert: 40, bgClear: 40, colorToggle: 40, undoAll: 40, download: 40,
+    aiGenerate: 150, // Points for using AI
   };
 
   const noPointsButtons = [
@@ -2110,6 +2174,9 @@ window.addEventListener('load', () => {
     document.fonts?.ready?.then(updateFontSize);
 
     generate();
+    
+    // Start auto-generation loop
+    autoGenerateInterval = setInterval(generate, 400);
 
     window.addEventListener('resize', applyCompositionShift);
 
