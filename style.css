@@ -18,7 +18,7 @@ body {
 }
 
 .app {
-    max-width: 768px;
+    max-width: 960px;
     display: flex;
     width: 100%;
     height: 100%;
@@ -307,6 +307,16 @@ button#soon-label {
   max-height: 40px;
 }
 
+.cringe-container {
+  padding-bottom: 0px; /* Для десктопа */
+}
+
+@media (max-width: 768px) {
+  .cringe-container {
+    padding-bottom: 18px; /* Для мобилки */
+  }
+}
+
 .button-label {
     border-radius: 200px;
     background: #c8c8c8;
@@ -375,7 +385,7 @@ button#soon-label:hover {
     overflow: hidden;
     border: 1px solid #c8c8c8;
     width: 100%;
-    max-width: 60vh;
+    max-width: 70vh;
     contain: layout paint size;
     margin-top: auto;
     margin-bottom: auto;
@@ -650,11 +660,10 @@ a {
 
 @media (max-width: 768px) {
 
-@media (max-width: 768px){
   .micro-floating{ width: calc(108% - 32px); }
   .micro-floating.top{ top: 16px; }
   .micro-floating.bottom{ bottom: 16px; }
-}
+
 
 
 footer {
@@ -702,6 +711,7 @@ footer {
        padding: 8px 44px 7px 18px;
     font-size: 14px;
     max-height: 40px;
+    height: 22px;
   }
 
   .who, h1 {
@@ -709,6 +719,7 @@ footer {
   }
 }
 
+/* --- Gamification Styles --- */
 
 .modal-backdrop {
     position: fixed;
@@ -773,12 +784,6 @@ input[type="color"] {
 }
 
 /* --- Gamification Styles --- */
-.cringe-container {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  padding-bottom: 18px;
-}
 
 .cringe-bar-container {
   flex-grow: 1;
