@@ -308,7 +308,9 @@ button#soon-label {
 }
 
 .cringe-container {
-  padding-bottom: 0px; /* Для десктопа */
+    padding-bottom: 0px;
+    display: flex;
+    gap: 5px;
 }
 
 @media (max-width: 768px) {
