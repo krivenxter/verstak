@@ -238,8 +238,26 @@ remove: 'Убрать',
     cringe_bar: 'Кринж: {current}/{max}',
     ultimate: 'Ультануть',
     ai_generate_label: 'Сгенерировать с ИИ',
+    shadow_title: 'Внутренняя тень',
+    shadow_color: 'Цвет',
+    shadow_alpha: 'Прозрачность (%)',
+    shadow_blur: 'Размытие (px)',
+    shadow_inset: 'Размер внутрь (px)',
+    shadow_offset_x: 'Смещение X (px)',
+    shadow_offset_y: 'Смещение Y (px)',
+    shadow_apply: 'Применить', // Ключ 'apply' у вас уже есть, но этот для 'shadow_apply'
+    shadow_clear: 'Убрать тень',
   },
   en: {
+    shadow_title: 'Inner Shadow',
+    shadow_color: 'Color',
+    shadow_alpha: 'Opacity (%)',
+    shadow_blur: 'Blur (px)',
+    shadow_inset: 'Inset size (px)',
+    shadow_offset_x: 'Offset X (px)',
+    shadow_offset_y: 'Offset Y (px)',
+    shadow_apply: 'Apply', // Can re-use 'apply', but 'shadow_apply' is clear
+    shadow_clear: 'Remove shadow',
     title: 'Typo Composition Generator',
     generate: 'Generate',
     placeholder: 'Your Text',
@@ -300,6 +318,11 @@ remove: 'Remove',
 };
 
 const I18N_MAP = [
+  ['#colorDone', 'done'], // Эта кнопка была пропущена
+  ['#shadowTitle', 'shadow_title'],
+  ['#shadowApply', 'apply'], // Используем ключ 'apply', который уже есть
+  ['#shadowClear', 'shadow_clear'],
+  ['#shadowDone', 'done'],
   ['.header h1','title'],
   ['#btn','generate'],
   ['#custom', 'placeholder', 'placeholder'],
@@ -323,31 +346,16 @@ const I18N_MAP = [
   ['#bgRandom > span','bg_random'],
   ['#shadowToggle', 'shadow'],
   ['#gradTitle','grad_title'],
-  ['label[for="gradA"]','grad_c1'],
-  ['label[for="gradB"]','grad_c2'],
-  ['label[for="gradC"]','grad_c3'],
-  ['label[for="gradAngle"]','grad_angle'],
-  ['label[for="gradBias1"]','grad_bias1'],
-  ['label[for="gradBias2"]','grad_bias2'],
-  ['label[for="gradNoise"]','grad_noise'],
-  ['label[for="gradNoiseSize"]','grad_noise_size'],
   ['#gradRandom','grad_random'],
   ['#gradClear','grad_clear'],
   ['#gradDone','done'],
   ['#colorTitle','color_title'],
-  ['label[for="colorPick"]','color_fill'],
-  ['label[for="colorAlpha"]','color_alpha'],
-  ['label[for="strokeColor"]','stroke_color'],
-  ['label[for="strokeWidth"]','stroke_width'],
-  ['label[for="strokeEnabled"]','stroke_enabled'],
   ['#microTitle','micro_title'],
-  ['label[for="microInput"]','micro_text'],
   ['#microPosLabel','micro_position'],
   ['.micro-pos[data-pos="top-stage"]','pos_top_stage'],
   ['.micro-pos[data-pos="bottom-stage"]','pos_bottom_stage'],
   ['.micro-pos[data-pos="above-line1"]','pos_above_line1'],
   ['.micro-pos[data-pos="below-line2"]','pos_below_line2'],
-  ['label[for="microSize"]','micro_size'],
   ['#microApply','apply'],
   ['#microClear','remove'],
   ['#microDone','done'],
@@ -411,6 +419,12 @@ function setPlaceholder(el, text){
 }
 
 const I18N_LABELS_BY_INPUT = {
+  shadowColor: 'shadow_color',
+  shadowAlpha: 'shadow_alpha',
+  shadowBlur: 'shadow_blur',
+  shadowInset: 'shadow_inset',
+  shadowOffsetX: 'shadow_offset_x',
+  shadowOffsetY: 'shadow_offset_y',
   gradA: 'grad_c1',
   gradB: 'grad_c2',
   gradC: 'grad_c3',
@@ -434,13 +448,47 @@ function setWrappingLabelText(inputId, text){
   const label = input.closest('label');
   if (!label) return;
 
-  for (const node of label.childNodes){
-    if (node.nodeType === Node.TEXT_NODE){
-      node.nodeValue = text + ' ';
+  let targetNode = null;
+
+  // 1. Ищем ПЕРВЫЙ текстовый узел, который *не* состоит только из пробелов.
+  for (const node of label.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() !== '') {
+          targetNode = node;
+          break;
+      }
+  }
+
+  // 2. Если такой узел найден, заменяем его.
+  if (targetNode) {
+      // 'strokeEnabled' -- единственный случай, где input идет ПЕРЕД текстом.
+      // Во всех остальных случаях (Цвет 1, Размер, и т.д.) -- текст идет ДО input'а.
+      // Эта проверка решает, куда ставить пробел.
+      targetNode.nodeValue = (inputId === 'strokeEnabled') ? (' ' + text) : (text + ' ');
       return;
+  }
+
+  // 3. (Запасной вариант) Не нашли непустых узлов (может, они пустые).
+  // Ищем *вообще любой* текстовый узел и заменяем его.
+  for (const node of label.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      targetNode = node;
+      break;
     }
   }
-  label.prepend(document.createTextNode(text + ' '));
+  
+  if(targetNode) {
+     targetNode.nodeValue = (inputId === 'strokeEnabled') ? (' ' + text) : (text + ' ');
+     return;
+  }
+
+  // 4. (Крайний случай) В <label> вообще нет текстовых узлов. Добавляем новый.
+  if (inputId === 'strokeEnabled') {
+     // Добавляем ПОСЛЕ input'а
+     label.appendChild(document.createTextNode(' ' + text));
+  } else {
+     // Добавляем ПЕРЕД input'ом
+     label.insertBefore(document.createTextNode(text + ' '), input);
+  }
 }
 
 function applyLang(lang){
