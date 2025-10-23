@@ -680,8 +680,27 @@ footer {
 }
 
  .composition { max-width: 100%; }
-  .stage      { max-width: 100%;
-  width: 100% !important;}
+
+.stage {
+    aspect-ratio: 3 / 4 !important;
+    background: #fff;
+    border-radius: 18px;
+    display: grid;
+    place-items: top;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #c8c8c8;
+    width: 100%;
+    max-width: 70vh;
+    contain: layout paint size;
+    margin-top: auto;
+    margin-bottom: auto;
+    flex: initial;
+    margin-left: auto;
+    margin-right: auto;
+    height: auto;
+}
+ 
     .line {
   letter-spacing: -5px !important;
 
