@@ -808,17 +808,17 @@ input[type="color"] {
 
 .cringe-bar-container {
   flex-grow: 1;
-  background-color: #e0e0e0;
+  background-color: #eaeaea;
   border-radius: 24px;
   overflow: hidden;
   position: relative;
-  height: 40px;
+  height: 39px;
   border: 1px solid #c8c8c8;
 }
 .cringe-bar-progress {
   height: 100%;
   width: 0%; /* Set by JS */
-background: linear-gradient(90deg, #9cff00, #ffa33b);
+    background: linear-gradient(90deg, #acff57, #ffb473);
   border-radius: 12px 0 0 12px;
   transition: width 0.5s ease-in-out;
 }
@@ -829,21 +829,22 @@ background: linear-gradient(90deg, #9cff00, #ffa33b);
   transform: translate(-50%, -50%);
   color: black;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
       text-transform: uppercase;
 }
-#ultimateBtn {
-  padding: 6px 16px;
-  height: 40px;
-  max-height: 40px;
-background: linear-gradient(90deg, #ff8499, #ff8499);
-  color: black;
-  border: none;
-  font-weight: bold;
-  animation: pulse 1.5s infinite;
 
+#ultimateBtn {
+    padding: 6px 16px;
+    height: 40px;
+    max-height: 40px;
+    background: linear-gradient(90deg, #ffa2a2, #ff84ad);
+    color: black;
+    border: none;
+    font-weight: 600;
+    animation: pulse 1.5s infinite;
 }
+
 #ultimateBtn[hidden] {
     display: none;
 }
@@ -856,7 +857,7 @@ background: linear-gradient(90deg, #ff8499, #ff8499);
   position: fixed;
   z-index: 10001;
   pointer-events: none;
-  font-size: 20px;
+  font-family: 'IBM Plex Mono', monospace;
   font-weight: bold;
   color: #28a745;
   text-shadow: 0 0 1px rgba(255,255,255,0.7);
@@ -882,30 +883,53 @@ background: linear-gradient(90deg, #ff8499, #ff8499);
 }
 
 /* --- Button Loading Indicator --- */
-button.loading > * { visibility: hidden; }
-button.loading { position: relative; }
+/* --- НОВАЯ АНИМАЦИЯ ЗАГРУЗКИ --- */
+button.loading > * { visibility: hidden; } /* Оставляем скрытие текста */
+button.loading { position: relative; }   /* Оставляем позиционирование */
+
 button.loading::after {
-    content: '';
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    top: 50%;
-    left: 50%;
-    margin: -8px 0 0 -8px;
-    border-radius: 50%;
-    animation: spin .8s linear infinite;
-    border-style: solid;
-    border-width: 2px;
+  content: '█'; /* Начальный символ */
+  position: absolute;
+  top: 43%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'IBM Plex Mono', monospace; /* Моноширинный шрифт */
+  font-size: 26px; /* Размер символа */
+  font-weight: 500;
+  line-height: 1;
+  animation: glitch-load 0.5s steps(1) infinite; /* Новая анимация */
+  /* Убираем рамки от старого спиннера */
+  border: none;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border-radius: 0;
+  opacity: 1 !important;
 }
+
+/* Цвет символа для обычных кнопок */
+button:not(.secondary).loading::after,
+button#ultimateBtn.loading::after {
+  color: black; /* Белый на темном фоне */
+}
+
+/* Цвет символа для secondary кнопок */
 button.secondary.loading::after {
-    border-color: #c8c8c8;
-    border-top-color: #111;
+  color: black; /* Черный на светлом фоне */
 }
-button:not(.secondary).loading::after, button#ultimateBtn.loading::after {
-    border-color: rgba(0,0,0,0.5);
-    border-top-color: #000;
-}
- @keyframes spin {
-    to { transform: rotate(360deg); }
+
+/* Сама анимация смены символов */
+@keyframes glitch-load {
+  0%   { content: '/'; }
+  10%  { content: '-'; }
+  20%  { content: '\\'; }
+  30%  { content: '|'; }
+  40%  { content: '*'; }
+  50%  { content: '#'; }
+  60%  { content: '>'; }
+  70%  { content: '$'; }
+  80%  { content: '&'; }
+  90%  { content: '%'; }
+  100% { content: '█'; }
 }
   </style>
