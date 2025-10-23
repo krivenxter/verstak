@@ -821,6 +821,7 @@ input[type="color"] {
     background: linear-gradient(90deg, #acff57, #ffb473);
   border-radius: 12px 0 0 12px;
   transition: width 0.5s ease-in-out;
+ opacity: 0.8;
 }
 .cringe-label {
   position: absolute;
