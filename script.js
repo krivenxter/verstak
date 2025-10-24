@@ -258,7 +258,7 @@ remove: 'Убрать',
     shadow_offset_y: 'Offset Y (px)',
     shadow_apply: 'Apply', // Can re-use 'apply', but 'shadow_apply' is clear
     shadow_clear: 'Remove shadow',
-    title: 'Typo Composition Generator',
+    title: 'Text Composition Generator',
     generate: 'Generate',
     placeholder: 'Your Text',
     up: '▲',
