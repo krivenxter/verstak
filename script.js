@@ -1,5 +1,3 @@
-
-// === ДАННЫЕ ===
 const PHRASES_RU = [
   ["монитора","блик"],["фотошопа","тень"],["клавиатуры","пыль"],
   ["диска","царапина"],["плеера","шум"],["кассеты","треск"],
@@ -615,7 +613,7 @@ function paintGradient(ctx, w, h, gradientStr){
   const cx = w/2, cy = h/2;
   const dx = Math.cos(rad)*L, dy = Math.sin(rad)*L;
 
-  const g = ctx.createLinearGradient(cx-dx, cy-dy, cx+dx, cy+dy);
+  const g = ctx.createLinearGradient(cx-dx, cy-dy, cx+dx, dy+dy);
   stops.forEach(st=>g.addColorStop(st.pos/100, st.color));
   ctx.fillStyle = g;
   ctx.fillRect(0,0,w,h);
@@ -944,9 +942,9 @@ async function applyInnerShadow(readFromInputs = true){
     innerShadow.classList.add('active');
     overlay.hidden = false;
     overlay.style.background = 'transparent';
-overlay.style.transform = isRounded
-  ? `translateY(${lastShiftPx}px) scale(${mainZoom})`
-  : '';
+    overlay.style.transform = isRounded
+      ? `translateY(${lastShiftPx}px) scale(${mainZoom})`
+      : '';
   } else {
     innerShadow.classList.remove('active');
     innerShadow.style.backgroundImage = '';
@@ -1683,39 +1681,114 @@ function toggleCrosses(){
 }
 
 async function generateAiText() {
-    if (!btnAiGenerate) return;
-    btnAiGenerate.disabled = true;
-    btnAiGenerate.classList.add('loading');
-
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const langName = currentLang === 'ru' ? 'Russian' : 'English';
-        const prompt = `Generate two short, impactful words for a typographic poster with a 'cyberpunk future' theme. The words should be in ${langName}. Provide only the two words separated by a newline. Do not add any other formatting or explanation.`;
-        
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-        
-        const text = response.text;
-        
-        if (text && custom) {
-            custom.value = text.trim();
-            generate();
-        }
-
-    } catch (error) {
-        console.error("AI text generation failed:", error);
-        if (custom) {
-             const fallbackText = currentLang === 'ru' ? "ОШИБКА\nAPI" : "API\nERROR";
-             custom.value = fallbackText;
-             generate();
-        }
-    } finally {
-        btnAiGenerate.disabled = false;
-        btnAiGenerate.classList.remove('loading');
+    // This function is disabled due to API key issues.
+    console.warn("AI text generation is currently disabled.");
+    if (custom) {
+        const fallbackText = currentLang === 'ru' ? "ОШИБКА\nAPI" : "API\nERROR";
+        custom.value = fallbackText;
+        generate();
     }
 }
+
+
+// === ONBOARDING LOGIC ===
+let completedSteps = new Set(JSON.parse(localStorage.getItem('completedOnboardingSteps')) || []);
+const onboardingElements = document.querySelectorAll('.onboarding-step');
+const controlGroup = document.querySelector('.control-group');
+
+function updateOnboardingUI() {
+    onboardingElements.forEach(el => {
+        const step = parseInt(el.dataset.step, 10);
+        if (completedSteps.has(step)) {
+            el.hidden = true;
+        }
+    });
+    // Handle group highlight
+    if (controlGroup) {
+        if (completedSteps.has(2)) {
+            controlGroup.classList.remove('onboarding-step-2-highlight');
+        } else {
+            controlGroup.classList.add('onboarding-step-2-highlight');
+        }
+    }
+}
+
+function completeStep(stepNumber) {
+    if (completedSteps.has(stepNumber)) return;
+    completedSteps.add(stepNumber);
+    localStorage.setItem('completedOnboardingSteps', JSON.stringify([...completedSteps]));
+    updateOnboardingUI();
+}
+
+
+// === METABALL LOGIC ===
+const metaballSvg = document.getElementById('metaball-svg');
+const metaballGroup = document.getElementById('metaball-group');
+const btnMetaball = document.getElementById('metaballToggle');
+let metaballModeActive = false;
+
+function setupMetaballs() {
+    let currentBall = null;
+    let svgPoint = metaballSvg.createSVGPoint();
+
+    function getMousePosition(event) {
+        svgPoint.x = event.clientX;
+        svgPoint.y = event.clientY;
+        const ctm = metaballSvg.getScreenCTM();
+        if (ctm) {
+            return svgPoint.matrixTransform(ctm.inverse());
+        }
+        return { x: 0, y: 0 };
+    }
+    
+    function handleMouseDown(event) {
+        if (!metaballModeActive) return;
+        const pos = getMousePosition(event);
+
+        if (currentBall) {
+            currentBall.el.style.opacity = '1';
+            currentBall = null;
+        } else {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', pos.x);
+            circle.setAttribute('cy', pos.y);
+            circle.setAttribute('r', 0);
+            circle.setAttribute('fill', 'url(#ballGradient)');
+            circle.style.opacity = '0.75';
+            metaballGroup.appendChild(circle);
+
+            currentBall = { x: pos.x, y: pos.y, el: circle };
+            resetRoundState(); // Invalidate silhouette when drawing starts
+        }
+    }
+
+    function handleMouseMove(event) {
+        if (!metaballModeActive || !currentBall) return;
+        const pos = getMousePosition(event);
+        const dx = pos.x - currentBall.x;
+        const dy = pos.y - currentBall.y;
+        const radius = Math.sqrt(dx * dx + dy * dy);
+        currentBall.el.setAttribute('r', radius);
+        resetRoundState(); // Invalidate silhouette while drawing
+    }
+
+    metaballSvg.addEventListener('mousedown', handleMouseDown);
+    metaballSvg.addEventListener('mousemove', handleMouseMove);
+}
+
+btnMetaball?.addEventListener('click', () => {
+    if (metaballGroup.children.length > 0) {
+        // If metaballs exist, clear them
+        metaballGroup.innerHTML = '';
+        metaballModeActive = false;
+        metaballSvg.style.display = 'none';
+    } else {
+        // If no metaballs, enter drawing mode
+        metaballModeActive = true;
+        metaballSvg.style.display = 'block';
+    }
+    resetRoundState(); // Invalidate silhouette on mode change
+});
 
 // === СОБЫТИЯ UI ===
 // Stop auto-generation on any user interaction with a button (except language switch)
@@ -1726,19 +1799,26 @@ document.body.addEventListener('click', (e) => {
   }
 }, true); // Use capture phase to handle it first
 
-btnGenerate?.addEventListener('click', generate);
+btnGenerate?.addEventListener('click', () => {
+    generate();
+    completeStep(1);
+});
 
-btnAiGenerate?.addEventListener('click', generateAiText);
+// btnAiGenerate?.addEventListener('click', generateAiText);
 
-btnRound?.addEventListener('click', roundCorners);
+btnRound?.addEventListener('click', () => {
+    roundCorners();
+    completeStep(7);
+});
 btnDownload?.addEventListener('click', downloadPng);
 btnUndo?.addEventListener('click', () => undoAll({ preserveCurrentState: false }));
 
-btnMoveUp?.addEventListener('click', () => { compShiftState = Math.min(1, compShiftState + 1); applyCompositionShift(); });
-btnMoveDown?.addEventListener('click', () => { compShiftState = Math.max(-1, compShiftState - 1); applyCompositionShift(); });
+btnMoveUp?.addEventListener('click', () => { compShiftState = Math.min(1, compShiftState + 1); applyCompositionShift(); completeStep(2); });
+btnMoveDown?.addEventListener('click', () => { compShiftState = Math.max(-1, compShiftState - 1); applyCompositionShift(); completeStep(2); });
 
 
 btnCringe?.addEventListener('click', () => {
+  completeStep(4);
   const outlined = stage.querySelectorAll('.ch.outlined');
   if (outlined.length) {
     outlined.forEach(n => n.classList.remove('outlined'));
@@ -1754,9 +1834,13 @@ btnCringe?.addEventListener('click', () => {
   applyCompositionShift();
 });
 
-btnCrosses?.addEventListener('click', toggleCrosses);
+btnCrosses?.addEventListener('click', () => {
+    toggleCrosses();
+    completeStep(5);
+});
 
 btnMicro?.addEventListener('click', () => {
+  completeStep(3);
   microInput.value = microState.text || (I18N[currentLang]?.micro_prompt_default ?? '');
   microSize.value  = microState.sizePx;
   microPosBtns.forEach(b => b.classList.toggle('active', b.dataset.pos === microState.pos));
@@ -1810,9 +1894,15 @@ inpBgUpload?.addEventListener('change', (e) => {
     bgLayer.hidden = false;
   }
 });
-btnBgClear?.addEventListener('click', clearBackgroundAll);
+btnBgClear?.addEventListener('click', () => {
+    clearBackgroundAll();
+    completeStep(8);
+});
 
-btnGradToggle?.addEventListener('click', openGrad);
+btnGradToggle?.addEventListener('click', () => {
+    openGrad();
+    completeStep(11);
+});
 btnGradClose?.addEventListener('click', closeGrad);
 btnGradDone?.addEventListener('click', closeGrad);
 btnGradClear?.addEventListener('click', clearBackgroundAll);
@@ -1831,7 +1921,10 @@ gradNoiseSize?.addEventListener('input', () => {
   applyGrain();
 });
 
-btnColorToggle?.addEventListener('click', openColor);
+btnColorToggle?.addEventListener('click', () => {
+    openColor();
+    completeStep(10);
+});
 colorClose?.addEventListener('click', ()=> colorModal.hidden = true);
 colorDone?.addEventListener('click', ()=> colorModal.hidden = true);
 colorModal?.addEventListener('click', e=>{ if(e.target===e.currentTarget) colorModal.hidden = true; });
@@ -1882,10 +1975,12 @@ strokeEnabledInput?.addEventListener('change', async ()=>{
 btnZoomIn?.addEventListener('click', async ()=>{
   mainZoom = clampZoom( +(mainZoom + ZOOM_STEP).toFixed(2) );
   await applyMainZoom();
+  completeStep(2);
 });
 btnZoomOut?.addEventListener('click', async ()=>{
   mainZoom = clampZoom( +(mainZoom - ZOOM_STEP).toFixed(2) );
   await applyMainZoom();
+  completeStep(2);
 });
 
 const btnBgPin = document.getElementById('bgPin');
@@ -1906,6 +2001,7 @@ btnBgPin?.addEventListener('click', randomPinterestBg);
 let strokeWasRandomized = false;
 
 strokeToggle?.addEventListener('click', async ()=>{
+  completeStep(9);
   if (!isRounded){
     const turningOn = !liveStrokeOn;
     if (turningOn && !strokeWasRandomized){
@@ -2007,8 +2103,14 @@ async function setRandomBg() {
 
 btnBgRandom?.addEventListener('click', (e) => {
     if (e.currentTarget.disabled) return;
+    completeStep(6);
     awardCringePoints(e.currentTarget, e);
     setRandomBg();
+});
+
+shadowToggle?.addEventListener('click', () => {
+    // This listener is already complex, just add the step completion
+    completeStep(12);
 });
 
 
@@ -2209,13 +2311,20 @@ ultimateBtn?.addEventListener('click', performUltimate);
 
 document.body.addEventListener('click', (e) => {
     const button = e.target.closest('button');
-    if (button?.id === 'bgRandom') return; // Handled separately to award points before disabling
+    if (!button) return;
+    if (button.id === 'bgRandom') return; // Handled separately to award points before disabling
+    
+    // Do not award points for group buttons here, they have their own listeners
+    if (button.closest('.control-group')) return;
+
     awardCringePoints(button, e);
 });
 
 // --- INITIALIZATION ---
 window.addEventListener('load', () => {
     applyLang(currentLang);
+    setupMetaballs();
+    updateOnboardingUI();
 
     if (stage) {
         const ro = new ResizeObserver(() => requestAnimationFrame(updateFontSize));
